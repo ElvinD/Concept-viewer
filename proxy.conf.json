@@ -1,0 +1,10 @@
+{
+    "/graphql": {
+      "target": "http://localhost:8083/tbl/graphql",
+      "secure": true,
+      "changeOrigin": true,
+      "pathRewrite": {
+        "^/graphql": ""
+      }    
+    }
+  }
