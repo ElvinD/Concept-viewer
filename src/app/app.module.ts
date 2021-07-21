@@ -8,6 +8,7 @@ import { ListResourcesComponent } from './list-resources/list-resources.componen
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconModule } from '@angular/material/icon'
 import { MatTreeModule } from '@angular/material/tree';
+import { MatButtonModule  } from '@angular/material/button';
 
 @NgModule({
   declarations: [
@@ -16,6 +17,7 @@ import { MatTreeModule } from '@angular/material/tree';
   ],
   imports: [
     BrowserModule,
+    MatButtonModule,
     MatTreeModule,
     MatIconModule,
     GraphQLModule,
