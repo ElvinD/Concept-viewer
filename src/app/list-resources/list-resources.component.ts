@@ -15,6 +15,8 @@ export interface RDFNode{
 
 export interface SkosNode extends RDFNode {
     narrower?: SkosNode[];
+    broader?: SkosNode[];
+    topConceptOf?: ConceptSchemeNode[];
 }
 
 export interface ConceptSchemeNode extends RDFNode {

@@ -78,25 +78,21 @@ export const GET_ConceptSchemes = gql`
 `;
 
 export const GET_Concepts = gql`
-  query getSearchResults($limit: Int) {
-    concepts(first: $limit) {
-      definition { 
-        string
-      }
+ query getSearchResults($limit: Int, $filter_broader: ID) {
+    concepts(first: $limit, where: {broader: {hasValue: $filter_broader}}) {
+    uri
+    label
+    type {
       uri
-      narrower {
-        uri
-        label
-        narrower {
-          uri
-          label
-        }
-      }
       label
-      type {
-        uri
-        label
-      }
+    }
+    broader {
+      uri
+    }
+    narrower {
+      uri
+      label
     }
   }
+}
 `;
