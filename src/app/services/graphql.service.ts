@@ -64,6 +64,10 @@ export const GET_ConceptSchemes = gql`
       hasTopConcept {
         uri
         label
+        narrower {
+          uri
+          label
+        }
       }
       subject {
         uri

@@ -27,14 +27,9 @@ export class DynamicFlatNode {
  */
 @Injectable({ providedIn: 'root' })
 export class DynamicDatabase {
-  dataMap = new Map<string, string[]>([
-    ['Fruits', ['Apple', 'Orange', 'Banana']],
-    ['Vegetables', ['Tomato', 'Potato', 'Onion']],
-    ['Apple', ['Fuji', 'Macintosh']],
-    ['Onion', ['Yellow', 'White', 'Purple']]
-  ]);
+  dataMap = new Map<string, string[]>();
 
-  rootLevelNodes: string[] = ['Fruits', 'Vegetables'];
+  rootLevelNodes: string[] = [];
 
   constructor() { }
 
@@ -79,7 +74,10 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
       }
     });
 
-    return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => this.data));
+    return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => {
+      // console.log("return data: ", this.data);
+      return this.data;
+    }));
   }
 
   disconnect(collectionViewer: CollectionViewer): void { }
@@ -168,10 +166,15 @@ export class ConceptlistComponent implements OnInit {
     this.rootLevelConceptSchemes$.subscribe((data): void => {
       this.database.rootLevelNodes = data.map(conceptScheme => {
        const children = conceptScheme.hasTopConcept?.map(skos => {
-          return skos.uri;
+          return skos;
         });
         if (children) {
-          this.database.dataMap.set(conceptScheme.uri, children);
+          this.database.dataMap.set(conceptScheme.uri, children.map(child => child.uri));
+          children.map((child) => {
+            console.log("iteraring children: ", child);
+            if (child.narrower?.length) 
+              this.database.dataMap.set(child.uri, child.narrower.map(nestedChild => nestedChild.uri));
+          });
         }
         return conceptScheme.uri;
       });
