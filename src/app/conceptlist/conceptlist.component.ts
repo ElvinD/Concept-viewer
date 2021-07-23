@@ -4,25 +4,28 @@ import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree'
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { ConceptSchemeNode } from '../list-resources/list-resources.component';
+import { Apollo } from 'apollo-angular';
+import { GET_ConceptSchemes, Query } from '../services/graphql.service';
 
 export interface RDFNode {
   label: string;
   uri?: string;
-  parentUri?:string;
+  parentUri?: string;
   children?: RDFNode[];
 }
 
 /** Flat node with expandable and level information */
 export class DynamicFlatNode {
   constructor(public item: string, public level = 1, public expandable = false,
-              public isLoading = false) {}
+    public isLoading = false) { }
 }
 
 /**
  * Database for dynamic data. When expanding a node in the tree, the data source will need to fetch
  * the descendants data from the database.
  */
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class DynamicDatabase {
   dataMap = new Map<string, string[]>([
     ['Fruits', ['Apple', 'Orange', 'Banana']],
@@ -32,6 +35,8 @@ export class DynamicDatabase {
   ]);
 
   rootLevelNodes: string[] = ['Fruits', 'Vegetables'];
+
+  constructor() { }
 
   /** Initial data from database */
   initialData(): DynamicFlatNode[] {
@@ -64,7 +69,7 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
   }
 
   constructor(private _treeControl: FlatTreeControl<DynamicFlatNode>,
-              private _database: DynamicDatabase) {}
+    private _database: DynamicDatabase) { }
 
   connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {
     this._treeControl.expansionModel.changed.subscribe(change => {
@@ -77,7 +82,7 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
     return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => this.data));
   }
 
-  disconnect(collectionViewer: CollectionViewer): void {}
+  disconnect(collectionViewer: CollectionViewer): void { }
 
   /** Handle expand/collapse behaviors */
   handleTreeControl(change: SelectionChange<DynamicFlatNode>) {
@@ -105,14 +110,13 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 
     setTimeout(() => {
       if (expand) {
-        const nodes = children.map((name): DynamicFlatNode =>
-          {
-            return new DynamicFlatNode(name, node.level + 1, this._database.isExpandable(name));
-          });
+        const nodes = children.map((name): DynamicFlatNode => {
+          return new DynamicFlatNode(name, node.level + 1, this._database.isExpandable(name));
+        });
         this.data.splice(index + 1, 0, ...nodes);
       } else {
         let count = 0;
-        for (let i = index + 1; i < this.data.length && this.data[i].level > node.level; i++, count++) {}
+        for (let i = index + 1; i < this.data.length && this.data[i].level > node.level; i++, count++) { }
         this.data.splice(index + 1, count);
       }
 
@@ -130,7 +134,9 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 })
 export class ConceptlistComponent implements OnInit {
 
-  constructor(database: DynamicDatabase) {
+  rootLevelConceptSchemes$!: Observable<ConceptSchemeNode[]>;
+
+  constructor(public database: DynamicDatabase, private readonly apollo: Apollo) {
     this.treeControl = new FlatTreeControl<DynamicFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database);
 
@@ -154,8 +160,23 @@ export class ConceptlistComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.rootLevelConceptSchemes$ = this.apollo.watchQuery<Query>({
+      query: GET_ConceptSchemes,
+      variables: {},
+    }).valueChanges.pipe(map(result => result.data.conceptSchemes));
+
+    this.rootLevelConceptSchemes$.subscribe((data): void => {
+      this.database.rootLevelNodes = data.map(conceptScheme => {
+       const children = conceptScheme.hasTopConcept?.map(skos => {
+          return skos.uri;
+        });
+        if (children) {
+          this.database.dataMap.set(conceptScheme.uri, children);
+        }
+        return conceptScheme.uri;
+      });
+      this.dataSource.data = this.database.initialData();
+      console.log(this.database.dataMap);
+    });
   }
-
-  
-
 }

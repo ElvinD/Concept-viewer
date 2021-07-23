@@ -3,7 +3,7 @@ import {APOLLO_OPTIONS} from 'apollo-angular';
 import {ApolloClientOptions, InMemoryCache} from '@apollo/client/core';
 import {HttpLink} from 'apollo-angular/http';
 
-const uri = 'http://localhost:4200/graphql/ordina_esdm_architectuurbegrippen_2'; // <-- add the URL of the GraphQL server here
+const uri = 'http://localhost:4200/graphql/ordina_esdm_architectuurbegrippen'; // <-- add the URL of the GraphQL server here
 export function createApollo(httpLink: HttpLink): ApolloClientOptions<any> {
   return {
     link: httpLink.create({uri}),
