@@ -1,11 +1,10 @@
-import { Component, Injectable, OnInit } from '@angular/core';
-import { FlatTreeControl } from '@angular/cdk/tree';
-import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
+import { FlatTreeControl } from '@angular/cdk/tree';
+import { Component, Injectable, OnInit } from '@angular/core';
+import { Apollo } from 'apollo-angular';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ConceptSchemeNode, SkosNode } from '../list-resources/list-resources.component';
-import { Apollo } from 'apollo-angular';
 import { GET_Concepts, GET_ConceptSchemes, Query } from '../services/graphql.service';
 
 export interface RDFNode {
@@ -38,8 +37,29 @@ export class DynamicDatabase {
     return this.rootLevelNodes.map(name => new DynamicFlatNode(name, 0, true));
   }
 
-  getChildren(node: string): string[] | undefined {
-    return this.dataMap.get(node);
+  getChildren(uri: string): Promise<string[] | undefined> {
+    if (this.dataMap.has(uri)) {
+    return new Promise(resolve => {
+        return resolve(this.dataMap.get(uri));
+    });
+    } else {
+      console.log("moet laden", uri);
+      return new Promise(resolve => {
+        setTimeout(() => {
+          return resolve(this.dataMap.get(uri));
+        }, 1000);
+      });
+
+    }
+    // return new Promise(resolve => {
+    //   setTimeout(() => {
+    //     return resolve(this.dataMap.get(uri));
+    //   }, 1000);
+    // });
+  }
+
+  async hasChildren(uri: string): Promise<boolean> {
+    return this.dataMap.has(uri);
   }
 
   isExpandable(node: string): boolean {
@@ -56,7 +76,9 @@ export class DynamicDatabase {
 export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 
   dataChange = new BehaviorSubject<DynamicFlatNode[]>([]);
-  allSkosConcepts$!: Observable<SkosNode[]>;
+  // allSkosConcepts$!: Observable<SkosNode[]>;
+    /** children cache */
+    children = new Map<string, string[]>();
 
   get data(): DynamicFlatNode[] { return this.dataChange.value; }
   set data(value: DynamicFlatNode[]) {
@@ -67,6 +89,17 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
   constructor(private _treeControl: FlatTreeControl<DynamicFlatNode>,
     private _database: DynamicDatabase, private apollo: Apollo) { }
 
+  // connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {
+  //   this._treeControl.expansionModel.changed.subscribe(change => {
+  //     if ((change as SelectionChange<DynamicFlatNode>).added ||
+  //       (change as SelectionChange<DynamicFlatNode>).removed) {
+  //       this.handleTreeControl(change as SelectionChange<DynamicFlatNode>);
+  //     }
+  //   });
+
+  //   return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => {
+  //     return this.data;
+  //   }));
   connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {
     this._treeControl.expansionModel.changed.subscribe(change => {
       if ((change as SelectionChange<DynamicFlatNode>).added ||
@@ -74,86 +107,111 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
         this.handleTreeControl(change as SelectionChange<DynamicFlatNode>);
       }
     });
-
-    return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => {
-      // console.log("return data: ", this.data);
-      return this.data;
-    }));
+    return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => this.data));
   }
 
   disconnect(collectionViewer: CollectionViewer): void { }
 
   /** Handle expand/collapse behaviors */
+  // handleTreeControl(change: SelectionChange<DynamicFlatNode>) {
+  //   if (change.added) {
+  //     change.added.forEach(node => {
+  //       return this.toggleNode(node, true);
+  //     });
+  //   }
+  //   if (change.removed) {
+  //     change.removed.slice().reverse().forEach((node): void => this.toggleNode(node, false));
+  //   }
+  // }
+
   handleTreeControl(change: SelectionChange<DynamicFlatNode>) {
     if (change.added) {
-      change.added.forEach(node => {
-        return this.toggleNode(node, true);
-      });
+      change.added.forEach((node) => this.toggleNode(node, true));
     }
     if (change.removed) {
-      change.removed.slice().reverse().forEach((node): void => this.toggleNode(node, false));
+      change.removed.reverse().forEach((node) => this.toggleNode(node, false));
     }
   }
 
-  /**
-   * Toggle the node, remove from display list
-   */
-  toggleNode(node: DynamicFlatNode, expand: boolean) {
-    const children = this._database.getChildren(node.item);
+  async toggleNode(node: DynamicFlatNode, expand: boolean) {
+    let children: string[] | undefined;
+    if (this.children.has(node.item)) {
+      children = this.children.get(node.item);
+    } else {
+      node.isLoading = true;
+      children = await this._database.getChildren(node.item);
+    }
     const index = this.data.indexOf(node);
     if (!children || index < 0) { // If no children, or cannot find the node, no op
+      node.isLoading = false;
       return;
     }
 
-    node.isLoading = true;
-
-    // console.log ("toggle node: ", node, "children: ", children);
-    // for every child we must query for more children we didnt already cache during initial load
-
-    // load new children
     if (expand) {
-      this.getSkosChildren(children);
+      const nodesPromises: Promise<DynamicFlatNode>[] = children.map(async item =>
+        new DynamicFlatNode(item, node.level + 1, await this._database.hasChildren(item)));
+      const nodes = await Promise.all(nodesPromises);
+      this.data.splice(index + 1, 0, ...nodes);
+      this.children.set(node.item, children);
+    } else {
+      const count = this.countInvisibleDescendants(node);
+      this.data.splice(index + 1, count);
+      this.children.delete(node.item);
     }
-
-    // update _database
-
-
-    //remove set timeout
-    setTimeout(() => {
-      if (expand) {
-        const nodes = children.map((name): DynamicFlatNode => {
-          return new DynamicFlatNode(name, node.level + 1, this._database.isExpandable(name));
-        });
-        this.data.splice(index + 1, 0, ...nodes);
-      } else {
-        let count = 0;
-        for (let i = index + 1; i < this.data.length && this.data[i].level > node.level; i++, count++) { }
-        this.data.splice(index + 1, count);
-      }
-
-      // notify the change
-      this.dataChange.next(this.data);
-      node.isLoading = false;
-    }, 1000);
+    this.dataChange.next(this.data);
+    node.isLoading = false;
   }
+
+  countInvisibleDescendants(node: DynamicFlatNode): number {
+    let count = 0;
+    if (!this._treeControl.isExpanded(node)) {
+      this._treeControl.getDescendants(node).map(child => {
+        count += 1 + this.countInvisibleDescendants(child);
+      });
+    }
+    return count;
+  }
+ 
+  // toggleNode(node: DynamicFlatNode, expand: boolean) {
+  //   const children = this._database.getChildren(node.item);
+  //   const index = this.data.indexOf(node);
+  //   if (!children || index < 0) { // If no children, or cannot find the node, no op
+  //     return;
+  //   }
+
+  //   node.isLoading = true;
+  //   if (expand) {
+  //     const nodes = children.map((name): DynamicFlatNode => {
+  //       return new DynamicFlatNode(name, node.level + 1, this._database.isExpandable(name));
+  //     });
+  //     this.data.splice(index + 1, 0, ...nodes);
+  //   } else {
+  //     let count = 0;
+  //     for (let i = index + 1; i < this.data.length && this.data[i].level > node.level; i++, count++) { }
+  //     this.data.splice(index + 1, count);
+  //   }
+
+  //   this.dataChange.next(this.data);
+  //   node.isLoading = false;
+  // }
 
   getSkosChildren(children: string[]) {
     console.log("op zoek naar kinderen: ", children);
     const queue = children.concat();
     const child = queue.splice(0, 1).pop();
     console.log("nu kijken naar", child);
-    if (child) {
-      if (this._database.getChildren(child)?.length) {
-        // console.log(child, " heeft kinderen dan hoef ik niet te zoeken", children);
-        if (queue.length) {
-          console.log("verder kijken: ", queue);
-          this.getSkosChildren(queue);
-        } else {
-          console.log("Niets te zien hier");
-        }
-      }
-    }
-    this.allSkosConcepts$ = this.apollo.watchQuery<Query>({
+    // if (child) {
+    //   if (this._database.getChildren(child)?.length) {
+    //     // console.log(child, " heeft kinderen dan hoef ik niet te zoeken", children);
+    //     if (queue.length) {
+    //       console.log("verder kijken: ", queue);
+    //       this.getSkosChildren(queue);
+    //     } else {
+    //       console.log("Niets te zien hier");
+    //     }
+    //   }
+    // }
+    this.apollo.watchQuery<Query>({
       query: GET_Concepts,
       errorPolicy: 'all',
       variables: { filter_broader: child },
@@ -161,20 +219,20 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
       // console.log("Gevonden:", result);
       return result.data.concepts;
     }));
-    this.allSkosConcepts$.subscribe((data): void => {
-      // console.log("children data: ", data);
-      if (data.length) {
-        console.log("kindern gevonden: ", data);
-        if (data.length > 0 && data[0].broader?.length) {
-          this._database.dataMap.set(data[0].broader[0].uri, data.map(child => child.uri));
-        }
-      }
-      if (queue.length) {
-        this.getSkosChildren(queue);
-      } else {
-        console.log("done loading all children");
-      }
-    });
+    // this.allSkosConcepts$.subscribe((data): void => {
+    //   // console.log("children data: ", data);
+    //   if (data.length) {
+    //     console.log("kindern gevonden: ", data);
+    //     if (data.length > 0 && data[0].broader?.length) {
+    //       this._database.dataMap.set(data[0].broader[0].uri, data.map(child => child.uri));
+    //     }
+    //   }
+    //   if (queue.length) {
+    //     this.getSkosChildren(queue);
+    //   } else {
+    //     console.log("done loading all children");
+    //   }
+    // });
   }
 }
 
