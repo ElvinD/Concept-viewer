@@ -4,15 +4,7 @@ import { Component, Injectable, OnInit } from '@angular/core';
 import { Apollo } from 'apollo-angular';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ConceptSchemeNode, SkosNode } from '../list-resources/list-resources.component';
-import { GET_Concepts, GET_ConceptSchemes, Query } from '../services/graphql.service';
-
-export interface RDFNode {
-  label: string;
-  uri?: string;
-  parentUri?: string;
-  children?: RDFNode[];
-}
+import { ConceptSchemeNode, GET_Concepts, GET_ConceptSchemes, Query, RDFNode } from '../services/graphql.service';
 
 /** Flat node with expandable and level information */
 export class DynamicFlatNode {
@@ -27,36 +19,126 @@ export class DynamicFlatNode {
 @Injectable({ providedIn: 'root' })
 export class DynamicDatabase {
   dataMap = new Map<string, string[]>();
+  nodeMap = new Map<string, RDFNode>();
+  nodeMap$ = new BehaviorSubject(this.nodeMap);
+
+  loading: boolean = true;
+  error: any;
 
   rootLevelNodes: string[] = [];
 
-  constructor() { }
+  constructor(private apollo: Apollo) { }
 
   /** Initial data from database */
   initialData(): DynamicFlatNode[] {
     return this.rootLevelNodes.map(name => new DynamicFlatNode(name, 0, true));
   }
 
-  getChildren(uri: string): Promise<string[] | undefined> {
-    if (this.dataMap.has(uri)) {
-    return new Promise(resolve => {
-        return resolve(this.dataMap.get(uri));
-    });
-    } else {
-      console.log("moet laden", uri);
-      return new Promise(resolve => {
-        setTimeout(() => {
-          return resolve(this.dataMap.get(uri));
-        }, 1000);
-      });
+  // loadInitialData() {
+  //   return this.apollo.watchQuery<Query>({
+  //     query: GET_ConceptSchemes,
+  //     variables: {},
+  //   }).valueChanges.subscribe((response) => {
+  //     this.rootLevelNodes = response.data.conceptSchemes.map((scheme) => {
+  //       this.nodeMap.set(scheme.uri, {uri: scheme.uri, label: scheme.label, type: scheme.type})
+  //       return scheme.uri;
+  //     });
+  //   })
+  // };
 
-    }
-    // return new Promise(resolve => {
-    //   setTimeout(() => {
-    //     return resolve(this.dataMap.get(uri));
-    //   }, 1000);
-    // });
+
+
+  // this.rootLevelConceptSchemes$.subscribe((data): void => {
+  //   this.database.rootLevelNodes = data.map(conceptScheme => {
+  //     const children = conceptScheme.hasTopConcept?.map(skos => {
+  //       return skos;
+  //     });
+  //     if (children) {
+  //       this.database.dataMap.set(conceptScheme.uri, children.map(child => child.uri));
+  //       children.map((child) => {
+  //         // console.log("iteraring children: ", child);
+  //         if (child.narrower?.length)
+  //           this.database.dataMap.set(child.uri, child.narrower.map(nestedChild => nestedChild.uri));
+  //       });
+  //     }
+  //     return conceptScheme.uri;
+  //   });
+  //   this.dataSource.data = this.database.initialData();
+  //   // console.log(this.database.dataMap);
+  // });
+  // }
+  // }
+  async loadChildren(uri: string): Promise<string[]> {
+    console.log("get children from :", uri);
+    return this.apollo.query<Query>({
+      query: GET_Concepts,
+      errorPolicy: 'all',
+      variables: { filter_broader: uri }
+    }).toPromise().then(result => {
+      console.log("loaded children:", result.data);
+      if (result.data.concepts) {
+        this.dataMap.set(uri, result.data.concepts.map(skos => {
+          return skos.uri;
+        }));
+        result.data.concepts.map(skos => {
+          if (skos.narrower && skos.narrower.length) {
+            this.dataMap.set(skos.uri, skos.narrower?.map(skosChild => {
+              return skosChild.uri;
+            }));
+          }
+        })
+        return result.data.concepts.map((skos): string => {
+          return skos.uri;
+        });
+      } else return [];
+    })
+
   }
+  getChildren(uri: string): Promise<string[] | undefined> {
+    const node = this.nodeMap.get(uri);
+    if (node && node.type) {
+      switch (node.type[0].label) {
+        case "Concept":
+          this.loadChildren(uri);
+          return new Promise((resolve): void => {
+            return resolve(this.loadChildren(uri));
+          });
+          break;
+
+        case "Concept Scheme":
+          console.log(" clicked a conceptscheme", node);
+          break;
+
+        default:
+          break;
+
+      }
+    }
+    return new Promise((resolve): void => {
+      return resolve(this.dataMap.get(uri));
+    });
+  }
+  // return this.apollo.query<Query>({
+  //   query: GET_Concepts,
+  //   errorPolicy: 'all',
+  //   variables: { filter_broader: uri }
+  // }).subscribe((result => {
+  //   console.log("get children: ", result);
+  // }))
+  // if (this.dataMap.has(uri)) {
+  //   return new Promise((resolve): void => {
+  //     return resolve(this.dataMap.get(uri));
+  //   });
+  // } else {
+  //   console.log("moet laden", uri);
+  //   return new Promise(resolve => {
+  //     setTimeout(() => {
+  //       return resolve(this.dataMap.get(uri));
+  //     }, 1000);
+  //   });
+
+  // }
+  // }
 
   async hasChildren(uri: string): Promise<boolean> {
     return this.dataMap.has(uri);
@@ -76,9 +158,8 @@ export class DynamicDatabase {
 export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 
   dataChange = new BehaviorSubject<DynamicFlatNode[]>([]);
-  // allSkosConcepts$!: Observable<SkosNode[]>;
-    /** children cache */
-    children = new Map<string, string[]>();
+  /** children cache */
+  children = new Map<string, string[]>();
 
   get data(): DynamicFlatNode[] { return this.dataChange.value; }
   set data(value: DynamicFlatNode[]) {
@@ -89,17 +170,6 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
   constructor(private _treeControl: FlatTreeControl<DynamicFlatNode>,
     private _database: DynamicDatabase, private apollo: Apollo) { }
 
-  // connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {
-  //   this._treeControl.expansionModel.changed.subscribe(change => {
-  //     if ((change as SelectionChange<DynamicFlatNode>).added ||
-  //       (change as SelectionChange<DynamicFlatNode>).removed) {
-  //       this.handleTreeControl(change as SelectionChange<DynamicFlatNode>);
-  //     }
-  //   });
-
-  //   return merge(collectionViewer.viewChange, this.dataChange).pipe(map(() => {
-  //     return this.data;
-  //   }));
   connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {
     this._treeControl.expansionModel.changed.subscribe(change => {
       if ((change as SelectionChange<DynamicFlatNode>).added ||
@@ -140,6 +210,8 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
     } else {
       node.isLoading = true;
       children = await this._database.getChildren(node.item);
+      // const test = await this._database.getChildren(node.item);
+      // return;
     }
     const index = this.data.indexOf(node);
     if (!children || index < 0) { // If no children, or cannot find the node, no op
@@ -171,7 +243,7 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
     }
     return count;
   }
- 
+
   // toggleNode(node: DynamicFlatNode, expand: boolean) {
   //   const children = this._database.getChildren(node.item);
   //   const index = this.data.indexOf(node);
@@ -249,7 +321,6 @@ export class ConceptlistComponent implements OnInit {
     this.treeControl = new FlatTreeControl<DynamicFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database, apollo);
 
-    this.dataSource.data = database.initialData();
   }
 
   treeControl: FlatTreeControl<DynamicFlatNode>;
@@ -272,11 +343,13 @@ export class ConceptlistComponent implements OnInit {
     this.rootLevelConceptSchemes$ = this.apollo.watchQuery<Query>({
       query: GET_ConceptSchemes,
       variables: {},
-    }).valueChanges.pipe(map(result => result.data.conceptSchemes));
+    }).valueChanges.pipe(map((result) => result.data.conceptSchemes));
 
     this.rootLevelConceptSchemes$.subscribe((data): void => {
       this.database.rootLevelNodes = data.map(conceptScheme => {
+        this.database.nodeMap.set(conceptScheme.uri, { uri: conceptScheme.uri, type: conceptScheme.type, label: conceptScheme.label });
         const children = conceptScheme.hasTopConcept?.map(skos => {
+          this.database.nodeMap.set(skos.uri, { uri: skos.uri, type: skos.type, label: skos.label });
           return skos;
         });
         if (children) {
@@ -284,12 +357,16 @@ export class ConceptlistComponent implements OnInit {
           children.map((child) => {
             // console.log("iteraring children: ", child);
             if (child.narrower?.length)
-              this.database.dataMap.set(child.uri, child.narrower.map(nestedChild => nestedChild.uri));
+              this.database.dataMap.set(child.uri, child.narrower.map((nestedChild) => {
+                this.database.nodeMap.set(nestedChild.uri, { uri: nestedChild.uri, type: nestedChild.type, label: nestedChild.label });
+                return nestedChild.uri
+              }));
           });
         }
         return conceptScheme.uri;
       });
       this.dataSource.data = this.database.initialData();
+      console.log("node map: ", this.database.nodeMap);
       // console.log(this.database.dataMap);
     });
   }

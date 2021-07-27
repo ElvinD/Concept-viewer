@@ -1,32 +1,11 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { Component, OnInit } from '@angular/core';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
-import { Apollo, gql } from 'apollo-angular';
-import { GET_Concepts, GraphqlService } from '../services/graphql.service';
+import { Apollo } from 'apollo-angular';
+import { ConceptSchemeNode, GraphqlService, RDFNode, SkosNode, TreeRenderNode } from '../services/graphql.service';
 
 export class DynamicFlatNode {
   constructor (public node:RDFNode, public level = 1, public expandable = false, public isLoading = false) {}
-}
-
-export interface RDFNode{
-  label:string;
-  uri:string;
-}
-
-export interface SkosNode extends RDFNode {
-    narrower?: SkosNode[];
-    broader?: SkosNode[];
-    topConceptOf?: ConceptSchemeNode[];
-}
-
-export interface ConceptSchemeNode extends RDFNode {
-  hasTopConcept?: SkosNode[];
-}
-
-export interface TreeRenderNode {
-  expandable: boolean;
-  name: string;
-  level: number;
 }
 
 @Component({
