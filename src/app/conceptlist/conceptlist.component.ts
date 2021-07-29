@@ -4,7 +4,7 @@ import { Component, Injectable, OnInit } from '@angular/core';
 import { Apollo } from 'apollo-angular';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { GET_Concepts, GET_ConceptSchemes } from '../model/queries';
+import { GET_Concept, GET_Concepts, GET_ConceptSchemes } from '../model/queries';
 import { RDFNode, Query } from '../model/types';
 
 
@@ -27,12 +27,24 @@ export class DynamicDatabase {
   error: any;
 
   private nodeLookupTable = new Map<string, RDFNode>();
+  private _selectedNode:string = "";
+  selectedNodeSubject = new BehaviorSubject(this._selectedNode);
 
   constructor(private apollo: Apollo) { }
 
   /** Initial data from database */
   initialData(): DynamicFlatNode[] {
     return this.rootLevelNodes.map(name => new DynamicFlatNode(name, 0, true));
+  }
+
+  async loadConcept(uri:string):Promise<RDFNode> {
+    return this.apollo.query<Query>({
+      query: GET_Concept,
+      variables: {uri:uri},
+    }).toPromise().then(result => {
+      // console.log("geladen: ", result);
+      return result.data.concepts[0];
+    });
   }
 
   async loadInitialData(): Promise<string[]> {
@@ -81,7 +93,7 @@ export class DynamicDatabase {
               if (!this.nodeLookupTable.get(skosChild.uri)) {
                 this.nodeLookupTable.set(skosChild.uri, { uri: skosChild.uri, type: skosChild.type, label: skosChild.label });
               } else {
-                console.log("bevat al skos element: ", skosChild);
+                // console.log("bevat al skos element: ", skosChild);
               }
               return skosChild.uri;
             }));
@@ -106,7 +118,7 @@ export class DynamicDatabase {
           break;
 
         case "Concept Scheme":
-          console.log(" clicked a conceptscheme", node);
+          // console.log(" clicked a conceptscheme", node);
           break;
 
         default:
@@ -132,13 +144,7 @@ export class DynamicDatabase {
     return this.dataMap.has(node);
   }
 }
-/**
- * File database, it can build a tree structured Json object from string.
- * Each node in Json object represents a file or a directory. For a file, it has filename and type.
- * For a directory, it has filename and children (a list of files or directories).
- * The input will be a json object string, and the output is a list of `FileNode` with nested
- * structure.
- */
+
 export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 
   dataChange = new BehaviorSubject<DynamicFlatNode[]>([]);
@@ -230,8 +236,8 @@ export class ConceptlistComponent implements OnInit {
   treeControl: FlatTreeControl<DynamicFlatNode>;
   dataSource: DynamicDataSource;
 
-  nodeClicked(event:any) {
-    console.log("clicked:", event);
+  nodeClicked(event:DynamicFlatNode) {
+    this.database.selectedNodeSubject.next(event.item);
   }
 
   getLevel = (node: DynamicFlatNode) => {

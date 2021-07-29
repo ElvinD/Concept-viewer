@@ -1,4 +1,45 @@
 import { gql } from 'apollo-angular';
+
+export const GET_Concept = gql`
+ query getSearchResults($uri: ID) {
+            concepts(uri:$uri) {
+                  uri
+                  
+                  label
+                  definition {
+                        string
+                  }
+                  type {
+                        uri
+                        label
+                  }
+                  broader {
+                        uri
+                        type {
+                              uri
+                              label
+                        }
+                        label
+                  }
+                  narrower {
+                        uri
+                        label
+                        type {
+                              uri
+                              label
+                        }
+                        narrower {
+                              uri
+                              label
+                              type {
+                                    uri
+                                    label
+                              }
+                        }
+                  }
+            }
+      }
+`;
 export const GET_ConceptSchemes = gql`
       query getSearchResults($limit: Int) {
             conceptSchemes(first: $limit) {

@@ -1,0 +1,13 @@
+.content {
+    margin: 2px;
+}
+
+:host {
+    display: flex;
+    flex-grow: 1;
+    background-color:white;
+    border: grey;
+    border-style: dotted;
+    border-width: 2px;
+    padding: 5px 10px 5px 10px;
+}

@@ -6,9 +6,15 @@ export interface RDFNode {
   children?: RDFNode[];
 }
 
+export interface Literal {
+  string: string;
+  __typename: string;
+}
+
 export interface SkosNode extends RDFNode {
   narrower?: SkosNode[];
   broader?: SkosNode[];
+  definition?: Literal[];
   topConceptOf?: ConceptSchemeNode[];
 }
 

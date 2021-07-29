@@ -2,7 +2,7 @@
   overflow: auto;
   height:100vh;
   min-width:40vh;
-  max-width:70vh;
+  max-width:100vh;
   direction:rtl; 
   /* background-color: beige; */
 }
@@ -32,4 +32,12 @@ mat-tree {
   height: 30px;
   line-height: 0px;
   color:orange;
+}
+
+:host {
+  background-color:white;
+  border: grey;
+  border-style: dotted;
+  border-width: 2px 0 0 0;
+  padding: 5px 10px 5px 10px;
 }
