@@ -4,7 +4,9 @@ import { Component, Injectable, OnInit } from '@angular/core';
 import { Apollo } from 'apollo-angular';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { GET_Concepts, GET_ConceptSchemes, Query, RDFNode } from '../services/graphql.service';
+import { GET_Concepts, GET_ConceptSchemes } from '../model/queries';
+import { RDFNode, Query } from '../model/types';
+
 
 /** Flat node with expandable and level information */
 export class DynamicFlatNode {
@@ -227,6 +229,10 @@ export class ConceptlistComponent implements OnInit {
 
   treeControl: FlatTreeControl<DynamicFlatNode>;
   dataSource: DynamicDataSource;
+
+  nodeClicked(event:any) {
+    console.log("clicked:", event);
+  }
 
   getLevel = (node: DynamicFlatNode) => {
     return node.level;
