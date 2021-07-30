@@ -1,17 +1,53 @@
 import { gql } from 'apollo-angular';
 
 export const GET_Concept = gql`
- query getSearchResults($uri: ID) {
+      query getSearchResults($uri: ID) {
             concepts(uri:$uri) {
                   uri
-                  
                   label
                   definition {
                         string
+                        lang
                   }
                   type {
                         uri
                         label
+                  }
+                  altLabel {
+                        string
+                        lang
+                  }
+                  prefLabel {
+                        string
+                        lang
+                  }
+                  related {
+                        uri
+                        label
+                  }
+                  note {
+                        string
+                        datatype
+                        lang
+                  }
+                  scopeNote {
+                        string
+                        datatype
+                        lang
+                  }
+                  example {
+                        string
+                        datatype
+                        lang
+                  }
+                  source
+                  subject {
+                        uri
+                        label
+                  }
+                  editorialNote {
+                        string
+                        lang
                   }
                   broader {
                         uri
@@ -28,14 +64,7 @@ export const GET_Concept = gql`
                               uri
                               label
                         }
-                        narrower {
-                              uri
-                              label
-                              type {
-                                    uri
-                                    label
-                              }
-                        }
+                        
                   }
             }
       }
@@ -45,6 +74,11 @@ export const GET_ConceptSchemes = gql`
             conceptSchemes(first: $limit) {
                   uri
                   label
+                  comment {
+                        string
+                        datatype
+                        lang
+                  }
                   type {
                         uri
                         label
@@ -103,15 +137,15 @@ export const GET_Concepts = gql`
                               uri
                               label
                         }
-                        narrower {
-                              uri
-                              label
-                              type {
-                                    uri
-                                    label
+                        # narrower {
+                              #       uri
+                              #       label
+                              #       type {
+                                    #             uri
+                                    #             label
+                                    #       }
+                                    # }
                               }
                         }
                   }
-            }
-      }
 `;

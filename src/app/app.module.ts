@@ -12,6 +12,10 @@ import { ConceptlistComponent } from './conceptlist/conceptlist.component';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ConceptcontentComponent } from './conceptcontent/conceptcontent.component';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
 
 
 @NgModule({
@@ -21,6 +25,10 @@ import { ConceptcontentComponent } from './conceptcontent/conceptcontent.compone
     ConceptcontentComponent
   ],
   imports: [
+    MatChipsModule,
+    MatCardModule,
+    MatDividerModule,
+    MatButtonToggleModule,
     MatToolbarModule,
     MatProgressBarModule,
     BrowserModule,

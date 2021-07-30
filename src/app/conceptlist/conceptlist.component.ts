@@ -5,13 +5,21 @@ import { Apollo } from 'apollo-angular';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { GET_Concept, GET_Concepts, GET_ConceptSchemes } from '../model/queries';
-import { RDFNode, Query } from '../model/types';
+import { Query, RDFNode } from '../model/types';
 
 
 /** Flat node with expandable and level information */
 export class DynamicFlatNode {
   constructor(public item: string, public level = 1, public expandable = false,
     public isLoading = false) { }
+}
+
+declare global {
+  interface Window {
+      dataMap:any;
+      data:any;
+      treeControl:any;
+  }
 }
 
 /**
@@ -21,6 +29,7 @@ export class DynamicFlatNode {
 @Injectable({ providedIn: 'root' })
 export class DynamicDatabase {
   dataMap = new Map<string, string[]>();
+  
   rootLevelNodes: string[] = [];
 
   loading: boolean = true;
@@ -30,9 +39,11 @@ export class DynamicDatabase {
   private _selectedNode:string = "";
   selectedNodeSubject = new BehaviorSubject(this._selectedNode);
 
-  constructor(private apollo: Apollo) { }
+  constructor(private apollo: Apollo) {
+    // debugging only!
+    window['dataMap'] = this.dataMap;
+   }
 
-  /** Initial data from database */
   initialData(): DynamicFlatNode[] {
     return this.rootLevelNodes.map(name => new DynamicFlatNode(name, 0, true));
   }
@@ -42,7 +53,6 @@ export class DynamicDatabase {
       query: GET_Concept,
       variables: {uri:uri},
     }).toPromise().then(result => {
-      // console.log("geladen: ", result);
       return result.data.concepts[0];
     });
   }
@@ -53,18 +63,17 @@ export class DynamicDatabase {
       variables: {},
     }).toPromise().then(result => {
       this.rootLevelNodes = result.data.conceptSchemes.map(conceptScheme => {
-        this.nodeLookupTable.set(conceptScheme.uri, { uri: conceptScheme.uri, type: conceptScheme.type, label: conceptScheme.label });
+        this.nodeLookupTable.set(conceptScheme.uri, conceptScheme);
         const children = conceptScheme.hasTopConcept?.map(skos => {
-          this.nodeLookupTable.set(skos.uri, { uri: skos.uri, type: skos.type, label: skos.label });
+          this.nodeLookupTable.set(skos.uri, skos);
           return skos;
         });
         if (children) {
           this.dataMap.set(conceptScheme.uri, children.map(child => child.uri));
           children.map((child) => {
-            //       // console.log("iteraring children: ", child);
             if (child.narrower?.length)
               this.dataMap.set(child.uri, child.narrower.map((nestedChild) => {
-                this.nodeLookupTable.set(nestedChild.uri, { uri: nestedChild.uri, type: nestedChild.type, label: nestedChild.label });
+                this.nodeLookupTable.set(nestedChild.uri, nestedChild);
                 return nestedChild.uri
               }));
           });
@@ -76,13 +85,11 @@ export class DynamicDatabase {
   };
 
   private async loadChildren(uri: string): Promise<string[]> {
-    // console.log("get children from :", uri);
     return this.apollo.query<Query>({
       query: GET_Concepts,
       errorPolicy: 'all',
       variables: { filter_broader: uri }
     }).toPromise().then(result => {
-      // console.log("loaded children:", result.data);
       if (result.data.concepts) {
         this.dataMap.set(uri, result.data.concepts.map(skos => {
           return skos.uri;
@@ -91,7 +98,7 @@ export class DynamicDatabase {
           if (skos.narrower && skos.narrower.length) {
             this.dataMap.set(skos.uri, skos.narrower?.map(skosChild => {
               if (!this.nodeLookupTable.get(skosChild.uri)) {
-                this.nodeLookupTable.set(skosChild.uri, { uri: skosChild.uri, type: skosChild.type, label: skosChild.label });
+                this.nodeLookupTable.set(skosChild.uri, skosChild);
               } else {
                 // console.log("bevat al skos element: ", skosChild);
               }
@@ -105,6 +112,44 @@ export class DynamicDatabase {
       } else return [];
     })
   }
+
+   getSortedMap (): Map<string, string[]> {
+    const keys = Array.from(this.dataMap.keys())
+    .sort((a, b) => {
+      if (a > b) {
+        return 1;
+      }
+      if (a < b) {
+        return -1
+      }
+      return 0;
+    });
+    const newMap = new Map<string, string[]>();
+    // console.log("sorted keys:", keys);
+    for (const key of keys) {
+      if (this.dataMap.get(key)) {
+        const value = this.dataMap.get(key);
+        newMap.set (key, value? value : []);
+      }
+    }
+    // console.log (newMap);
+    return newMap;
+  }
+
+  // private _sortArray(array: DynamicFlatNode[]): DynamicFlatNode[] {
+  //   const sorted = array.sort((a, b) => {
+  //     if (a.level > 0 && b.level > 0) {
+  //       if (a.item > b.item ) {
+  //         return 1;
+  //       }
+  //       if (a.item < b.item ) {
+  //         return -1;
+  //       }
+  //     }
+  //     return 0;
+  //   });
+  //   return sorted;
+  // }
 
   getChildren(uri: string): Promise<string[] | undefined> {
     const node = this.nodeLookupTable.get(uri);
@@ -158,7 +203,9 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
   }
 
   constructor(private _treeControl: FlatTreeControl<DynamicFlatNode>,
-    private _database: DynamicDatabase) { }
+    private _database: DynamicDatabase) {
+      window['treeControl'] = this._treeControl;
+     }
 
   connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {
     this._treeControl.expansionModel.changed.subscribe(change => {
@@ -189,6 +236,9 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
       node.isLoading = true;
       children = await this._database.getChildren(node.item);
     }
+    if (children) {
+      children = this._sortArray(children);
+    } 
     const index = this.data.indexOf(node);
     if (!children || index < 0) { // If no children, or cannot find the node, no op
       node.isLoading = false;
@@ -206,8 +256,26 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
       this.data.splice(index + 1, count);
       this.children.delete(node.item);
     }
+
+    
+    
+    // this.dataChange.next(this._sortArray(this.data));
     this.dataChange.next(this.data);
     node.isLoading = false;
+  }
+
+  private _sortArray(array: string[]): string[] {
+    const sorted = array.sort((a, b) => {
+        if (a > b ) {
+          return 1;
+        }
+        if (a < b ) {
+          return -1;
+        }
+      
+      return 0;
+    });
+    return sorted;
   }
 
   countInvisibleDescendants(node: DynamicFlatNode): number {
@@ -255,6 +323,10 @@ export class ConceptlistComponent implements OnInit {
   ngOnInit(): void {
     this.database.loadInitialData().then(() => {
       this.dataSource.data = this.database.initialData();
+      if (this.dataSource.data.length) {
+        this.database.selectedNodeSubject.next(this.dataSource.data[0].item);
+        this.treeControl.expand(this.treeControl.dataNodes[0]);
+      }
     });
   }
 }

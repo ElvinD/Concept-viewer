@@ -1,5 +1,42 @@
-<div class="content">
-    <h1>{{this.data$.label}}</h1><br/>
-    <div *ngFor="let definition of this.data$.definition" [innerHTML]="definition.string"></div>
-</div>
+<div class="contentcontainer">
+  <div class="content">
+    <ng-container *ngIf="conceptData$">
+      <h1>{{this.conceptData$.label}}</h1>
+      <mat-card>{{this.conceptData$.uri}}</mat-card><br />
 
+      <ng-container *ngIf="conceptData$.related?.length">
+        <h3>Gerelateerd
+        <mat-chip-list aria-label="Gerelateerd">
+            <mat-chip *ngFor="let related of conceptData$.related">{{related.label}}</mat-chip>
+          </mat-chip-list></h3>
+      </ng-container>
+      <ng-container *ngIf="conceptData$.definition?.length">
+        <h2>Definitie</h2>
+        <div *ngFor="let definition of conceptData$.definition" [innerHTML]="definition.string"></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+      <ng-container *ngIf="conceptData$.note?.length">
+        <h2>Opmerkingen</h2>
+        <div *ngFor="let note of conceptData$.note" [innerHTML]="note.string"></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+      <ng-container *ngIf="conceptData$.editorialNote?.length">
+        <h2>Redactionele opmerkingen</h2>
+        <div *ngFor="let note of conceptData$.editorialNote" [innerHTML]="note.string"></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+
+      <ng-container *ngIf="conceptData$.source?.length">
+        <h2>Bronnen</h2>
+        <div *ngFor="let source of conceptData$.source"><a [href]='source' target="_blank">{{source}}</a></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+    </ng-container>
+    <ng-container *ngIf="conceptSchemeData$">
+      <h1>{{this.conceptSchemeData$.label}}</h1>
+      <mat-card>{{this.conceptSchemeData$.uri}}</mat-card><br />
+      <div *ngFor="let comment of conceptSchemeData$.comment" [innerHTML]="comment.string"></div><br />
+      <mat-divider></mat-divider><br />
+    </ng-container>
+  </div>
+</div>

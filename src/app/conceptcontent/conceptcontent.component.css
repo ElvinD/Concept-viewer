@@ -2,6 +2,11 @@
     margin: 2px;
 }
 
+.contentcontainer {
+    overflow: auto;
+    height:80vh;
+}
+
 :host {
     display: flex;
     flex-grow: 1;
@@ -11,3 +16,27 @@
     border-width: 2px;
     padding: 5px 10px 5px 10px;
 }
+
+h1 {
+    margin: 0;
+}
+
+mat-card {
+    /* background-color:darkgrey; */
+    padding:4px;
+    color:grey;
+}
+
+.mat-chip.mat-standard-chip {
+    background-color:white;
+    border-width: 1px;
+    border-color:#f58220;
+    font-size: smaller;
+    min-height: 20px;
+    border-style:solid;
+}
+
+.mat-chip.mat-standard-chip:hover {
+    color:white;
+    background-color: #f58220;
+  }

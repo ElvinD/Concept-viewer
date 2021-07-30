@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
-import { RDFNode, SkosNode } from '../model/types';
+import { ConceptSchemeNode, RDFNode, ConceptNode } from '../model/types';
 
 @Component({
   selector: 'app-conceptcontent',
@@ -9,20 +9,30 @@ import { RDFNode, SkosNode } from '../model/types';
 })
 export class ConceptcontentComponent implements OnInit {
 
-  data$: SkosNode = { label: "Laden", type: [], uri: "" };
+  conceptData$?: ConceptNode = { label: "Laden", type: [], uri: "" };
+  conceptSchemeData$?: ConceptSchemeNode;
+  data$?:RDFNode;
 
   constructor(public database: DynamicDatabase) { }
 
   ngOnInit(): void {
     this.database.selectedNodeSubject.subscribe((node) => {
-      console.log("geklikt op ", node);
       if (this.database.getNode(node) !== undefined) {
-        switch (this.database.getNode(node)?.type[0].label) {
+        // console.log("geklikt op ", this.database.getNode(node));
+        this.data$ = this.database.getNode(node);
+        // switch (this.database.getNode(node)?.type[0].label) {
+        switch (this.database.getNode(node)?.__typename) {
           case "Concept":
             this.database.loadConcept(node).then((result) => {
-              this.data$ = result;
-              console.log('result:', this.data$);
+              this.conceptData$ = result;
+              this.conceptSchemeData$ = undefined;
+              console.log('result:', this.conceptData$);
             });
+            break;
+
+          case "ConceptScheme":
+            this.conceptData$ = undefined;
+            this.conceptSchemeData$ = this.database.getNode(node) as ConceptSchemeNode;
             break;
 
             default:

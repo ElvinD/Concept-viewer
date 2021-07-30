@@ -6,3 +6,11 @@ body {
   padding: 0;
   overflow: hidden;
 }
+
+.mat-typography {
+  font-size: smaller;
+}
+
+h1, h2, h3, h4 {
+  color:#f58220;
+}

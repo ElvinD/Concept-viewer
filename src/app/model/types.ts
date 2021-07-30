@@ -4,22 +4,32 @@ export interface RDFNode {
   uri: string;
   parentUri?: string;
   children?: RDFNode[];
+  comment?:Literal[];
+  __typename?: string;
 }
 
 export interface Literal {
   string: string;
-  __typename: string;
+  lang:string;
 }
 
-export interface SkosNode extends RDFNode {
-  narrower?: SkosNode[];
-  broader?: SkosNode[];
+export interface ConceptNode extends RDFNode {
+  narrower?: ConceptNode[];
+  broader?: ConceptNode[];
+  related?: ConceptNode[];
   definition?: Literal[];
+  altLabel?: Literal[];
+  note?:Literal[];
+  scopeNote?:Literal[];
+  example?:Literal[];
+  source?:string[];
+  subject?:RDFNode[];
+  editorialNote?: Literal[];
   topConceptOf?: ConceptSchemeNode[];
 }
 
 export interface ConceptSchemeNode extends RDFNode {
-  hasTopConcept?: SkosNode[];
+  hasTopConcept?: ConceptNode[];
 }
 
 export interface TreeRenderNode {
@@ -31,5 +41,5 @@ export interface TreeRenderNode {
 
 export type Query = {
   conceptSchemes: ConceptSchemeNode[];
-  concepts: SkosNode[];
+  concepts: ConceptNode[];
 }
