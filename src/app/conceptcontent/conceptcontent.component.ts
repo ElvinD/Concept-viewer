@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { DynamicDatabase } from '../conceptlist/conceptlist.component';
+import { Component, OnInit, Inject } from '@angular/core';
+import { DynamicDatabase, DynamicFlatNode } from '../conceptlist/conceptlist.component';
 import { ConceptSchemeNode, RDFNode, ConceptNode } from '../model/types';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { ConceptcontentpopupComponent, ConceptContentPopupData } from '../conceptcontentpopup/conceptcontentpopup.component';
 
 @Component({
   selector: 'app-conceptcontent',
@@ -11,22 +13,18 @@ export class ConceptcontentComponent implements OnInit {
 
   conceptData$?: ConceptNode = { label: "Laden", type: [], uri: "" };
   conceptSchemeData$?: ConceptSchemeNode;
-  data$?:RDFNode;
 
-  constructor(public database: DynamicDatabase) { }
+  constructor(public database: DynamicDatabase,
+    protected dialog: MatDialog) { };
 
   ngOnInit(): void {
     this.database.selectedNodeSubject.subscribe((node) => {
       if (this.database.getNode(node) !== undefined) {
-        // console.log("geklikt op ", this.database.getNode(node));
-        this.data$ = this.database.getNode(node);
-        // switch (this.database.getNode(node)?.type[0].label) {
         switch (this.database.getNode(node)?.__typename) {
           case "Concept":
             this.database.loadConcept(node).then((result) => {
               this.conceptData$ = result;
               this.conceptSchemeData$ = undefined;
-              console.log('result:', this.conceptData$);
             });
             break;
 
@@ -35,11 +33,38 @@ export class ConceptcontentComponent implements OnInit {
             this.conceptSchemeData$ = this.database.getNode(node) as ConceptSchemeNode;
             break;
 
-            default:
-              return;
+          default:
+            return;
         }
       }
     });
+  }
+
+  nodeClicked(node: RDFNode) {
+    // const existingNode = this.database.getNode(node.uri);
+    // if (existingNode !== undefined) {
+    //   this.showPopup(existingNode);
+    // } else {
+    //   console.log("need to fetch: ", node);
+      this.database.loadConcept(node.uri).then((result) => {
+        this.showPopup(result);
+      });
+    // }
+  }
+
+  protected showPopup(node: RDFNode) {
+    console.log("show popup: ", node);
+    if (this.conceptData$ === undefined) return;
+    const config = new MatDialogConfig();
+    config.disableClose = false;
+    config.autoFocus = true;
+    config.maxWidth = "80vw";
+    config.maxHeight = "80vh";
+    config.data = new ConceptContentPopupData (node, this.conceptData$);
+    let dialogRef = this.dialog.open(ConceptcontentpopupComponent, config);
+    dialogRef.afterClosed().subscribe(data => {
+      console.log(`Dialoog gesloten: ${data}`);
+    })
   }
 
 }

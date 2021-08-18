@@ -1,0 +1,35 @@
+<div class="contentcontainer">
+  <div class="content">
+    <ng-container *ngIf="data.conceptData">
+      <h1>{{data.conceptData.label}}</h1>
+      <mat-card>{{data.conceptData.uri}}</mat-card><br />
+      <ng-container *ngIf="data.conceptData.related?.length">
+        <h3>Gerelateerd
+        <mat-chip-list aria-label="Gerelateerd">
+            <mat-chip *ngFor="let related of data.conceptData.related" (click)="nodeClicked(related)">{{related.label}}</mat-chip>
+          </mat-chip-list></h3>
+      </ng-container>
+      <ng-container *ngIf="data.conceptData.definition?.length">
+        <h2>Definitie</h2>
+        <div *ngFor="let definition of data.conceptData.definition" [innerHTML]="definition.string"></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+      <ng-container *ngIf="data.conceptData.note?.length">
+        <h2>Opmerkingen</h2>
+        <div *ngFor="let note of data.conceptData.note" [innerHTML]="note.string"></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+      <ng-container *ngIf="data.conceptData.editorialNote?.length">
+        <h2>Redactionele opmerkingen</h2>
+        <div *ngFor="let note of data.conceptData.editorialNote" [innerHTML]="note.string"></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+
+      <ng-container *ngIf="data.conceptData.source?.length">
+        <h2>Bronnen</h2>
+        <div *ngFor="let source of data.conceptData.source"><a [href]='source' target="_blank">{{source}}</a></div><br />
+        <mat-divider></mat-divider>
+      </ng-container>
+    </ng-container>
+  </div>
+</div>

@@ -3,11 +3,10 @@
     <ng-container *ngIf="conceptData$">
       <h1>{{this.conceptData$.label}}</h1>
       <mat-card>{{this.conceptData$.uri}}</mat-card><br />
-
       <ng-container *ngIf="conceptData$.related?.length">
         <h3>Gerelateerd
         <mat-chip-list aria-label="Gerelateerd">
-            <mat-chip *ngFor="let related of conceptData$.related">{{related.label}}</mat-chip>
+            <mat-chip *ngFor="let related of conceptData$.related" (click)="nodeClicked(related)">{{related.label}}</mat-chip>
           </mat-chip-list></h3>
       </ng-container>
       <ng-container *ngIf="conceptData$.definition?.length">

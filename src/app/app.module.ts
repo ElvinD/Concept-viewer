@@ -16,13 +16,16 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { ConceptcontentpopupComponent } from './conceptcontentpopup/conceptcontentpopup.component';
+import { MatDialogModule } from '@angular/material/dialog';
 
 
 @NgModule({
   declarations: [
     AppComponent,
     ConceptlistComponent,
-    ConceptcontentComponent
+    ConceptcontentComponent,
+    ConceptcontentpopupComponent
   ],
   imports: [
     MatChipsModule,
@@ -33,6 +36,7 @@ import { MatChipsModule } from '@angular/material/chips';
     MatProgressBarModule,
     BrowserModule,
     MatButtonModule,
+    MatDialogModule,
     MatTreeModule,
     MatIconModule,
     GraphQLModule,

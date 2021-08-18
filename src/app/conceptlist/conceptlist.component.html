@@ -16,7 +16,7 @@
         <button class="nodelink" (click)="nodeClicked(node)">
           <div>{{database.getNode(node.item)?.label}}</div>
         </button>
-        <mat-progress-bar *ngIf="node.isLoading" mode="indeterminate" class="example-tree-progress-bar">
+        <mat-progress-bar *ngIf="node.isLoading" mode="indeterminate" class="progress-bar">
         </mat-progress-bar>
       </mat-tree-node>
     </mat-tree>
