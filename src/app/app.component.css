@@ -1,0 +1,11 @@
+.mat-toolbar {
+  background-color: white;
+}
+.brand {
+  width: 132px;
+  padding-top: 20px;
+  padding-right: 15px;
+}
+.mainbody {
+  display:flex;
+}

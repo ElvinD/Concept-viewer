@@ -1,20 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ListResourcesComponent } from './list-resources.component';
+import { ConceptcontentComponent } from './conceptcontent.component';
 
-describe('ListResourcesComponent', () => {
-  let component: ListResourcesComponent;
-  let fixture: ComponentFixture<ListResourcesComponent>;
+describe('ConceptcontentComponent', () => {
+  let component: ConceptcontentComponent;
+  let fixture: ComponentFixture<ConceptcontentComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ListResourcesComponent ]
+      declarations: [ ConceptcontentComponent ]
     })
     .compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(ListResourcesComponent);
+    fixture = TestBed.createComponent(ConceptcontentComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

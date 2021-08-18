@@ -1,0 +1,66 @@
+.navcontainer {
+  overflow: auto;
+  height:80vh;
+  min-width:40vh;
+  max-width:100vh;
+  direction:rtl; 
+  /* background-color: beige; */
+}
+.content {
+  direction:ltr; 
+}
+
+::ng-deep .mat-progress-bar-fill::after {
+  background-color: #f58220;
+}
+
+mat-progress-bar {
+  margin: 5px;
+}
+
+::ng-deep .mat-progress-bar-buffer {
+  background: wheat;
+}
+
+.nodelink  {
+  padding: 2px 5px 2px 5px;
+  /* background-color: #f58220; */
+  /* background-color: #d4d4d4; */
+  background-color: white;
+  /* filter: drop-shadow(3px 2px 2px rgba(0, 0, 0, 0.2)); */
+  border-radius: 5px;
+  color:rgb(97, 97, 97);
+  font-size: smaller;
+  border-color:#f58220;
+  border-style:solid;
+  border-width: 1px;
+  transition: padding 0.1s, background-color 0.1s, color 0.1s;
+  
+}
+
+.nodelink:hover {
+  padding-left:10px;
+  color:white;
+  background-color: #f58220;
+}
+mat-tree {
+  background: transparent;
+}
+
+.mat-tree-node {
+  min-height:fit-content !important;
+}
+.mat-icon-button {
+  width: 30px;
+  height: 30px;
+  line-height: 0px;
+  color:orange;
+}
+
+:host {
+  background-color:white;
+  border: grey;
+  border-style: dotted;
+  border-width: 2px 0 2px 0;
+  padding: 5px 10px 5px 10px;
+}
