@@ -18,6 +18,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { ConceptcontentpopupComponent } from './conceptcontentpopup/conceptcontentpopup.component';
 import { MatDialogModule } from '@angular/material/dialog';
+import { RouterModule } from '@angular/router';
 
 
 @NgModule({
@@ -41,7 +42,11 @@ import { MatDialogModule } from '@angular/material/dialog';
     MatIconModule,
     GraphQLModule,
     HttpClientModule,
-    BrowserAnimationsModule
+    BrowserAnimationsModule,
+    RouterModule.forRoot([
+      { path: '', pathMatch:'prefix' ,component: ConceptlistComponent },
+      { path: 'esdm/im/begrippen/id/:uri', pathMatch: 'prefix' , component: ConceptcontentComponent },
+    ])
   ],
   providers: [],
   bootstrap: [AppComponent]
