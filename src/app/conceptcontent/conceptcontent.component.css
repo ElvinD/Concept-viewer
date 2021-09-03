@@ -1,10 +1,12 @@
-.content {
-  margin: 2px;
-}
 
+.content {
+  width:100%;
+}
 .contentcontainer {
-  overflow: auto;
-  height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height:40vh;
+  max-height: 80vh;
 }
 
 :host {
@@ -13,7 +15,7 @@
   background-color: white;
   border: grey;
   border-style: dotted;
-  border-width: 2px;
+  border-width: 2px 0 2px 2px;
   padding: 5px 10px 5px 10px;
 }
 

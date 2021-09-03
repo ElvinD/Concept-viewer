@@ -9,3 +9,8 @@
 .mainbody {
   display:flex;
 }
+
+.bodycontent {
+  
+  width:100%;
+}

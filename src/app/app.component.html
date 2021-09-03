@@ -1,10 +1,13 @@
 <mat-toolbar>
   <a class="brand" href="https://www.ordina.nl/">
-    <img src="assets/img/logo.svg" alt="home"/>
-</a>
+    <img src="assets/img/logo.svg" alt="home" />
+  </a>
   <span>ESDM Knowledge Browser</span>
 </mat-toolbar>
 <div class="mainbody">
   <app-conceptlist></app-conceptlist>
-  <app-conceptcontent></app-conceptcontent>
+  <div class="bodycontent">
+    <app-conceptcontent></app-conceptcontent>
+    <app-explorer></app-explorer>
+  </div>
 </div>

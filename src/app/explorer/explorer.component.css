@@ -1,0 +1,35 @@
+:host {
+  display: flex;
+  flex-grow: 1;
+  background-color: white;
+  border: grey;
+  border-style: dotted;
+  border-width: 0 0 2px 2px;
+  padding: 5px 10px 5px 10px;
+}
+
+/* .engine-wrapper {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+} */
+
+.engine-wrapper {
+   
+  width:100%; 
+  background-color: white;
+  z-index:0;
+}
+
+#renderCanvas:focus {
+  outline: none;
+}
+
+#renderCanvas {
+  flex: 1;
+  /* height: 100%; */
+  /* width:100vw; */
+}
