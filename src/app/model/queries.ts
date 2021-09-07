@@ -72,6 +72,7 @@ export const GET_Concept = gql`
 export const GET_ConceptSchemes = gql`
       query getSearchResults($limit: Int) {
             conceptSchemes(first: $limit) {
+                  aantalBegrippen
                   uri
                   label
                   comment {
