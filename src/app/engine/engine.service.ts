@@ -62,6 +62,15 @@ export class EngineService implements OnDestroy {
      this.scene.add(this.rootMesh);
   }
 
+  addChildMesh(mesh:THREE.Mesh) {
+    this.childMeshes = this.childMeshes ? this.childMeshes : [];
+    this.childMeshes.push(mesh);
+  }
+
+  makeCircle():void {
+    
+  }
+
   createMesh(name:string):THREE.Mesh {
     const geometry = new THREE.SphereGeometry(0.1, 10, 10);
     const material = new THREE.MeshPhongMaterial({color: 0xf58220});
