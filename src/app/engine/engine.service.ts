@@ -1,67 +1,79 @@
 import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 @Injectable({
   providedIn: 'root'
 })
 export class EngineService implements OnDestroy {
-  private canvas!: HTMLCanvasElement;
-  private renderer!: THREE.WebGLRenderer;
-  private camera!: THREE.PerspectiveCamera;
-  private scene!: THREE.Scene;
-  private light!: THREE.AmbientLight;
+  private _canvas!: HTMLCanvasElement;
+  private _renderer!: THREE.WebGLRenderer;
+  private _camera!: THREE.PerspectiveCamera;
+  private _light!: THREE.AmbientLight;
+  private _controls!: OrbitControls;
+  private _frameId: number = -1;
+  private _hostElement!: ElementRef<HTMLDivElement>;
+  
+  public scene!: THREE.Scene;
+  public rootMesh!: THREE.Mesh;
+  public childMeshes!: THREE.Mesh[];
 
-  private cube!: THREE.Mesh;
-
-  private frameId: number = -1;
-  private hostElement!: ElementRef<HTMLDivElement>;
-
-  constructor(private ngZone: NgZone) { }
+  constructor(private _ngZone: NgZone) { }
 
   public createScene(canvas: ElementRef<HTMLCanvasElement>, hostElement: ElementRef<HTMLDivElement>): void {
     // The first step is to get the reference of the canvas element from our HTML document
-    this.hostElement = hostElement;
-    this.canvas = canvas.nativeElement;
+    this._hostElement = hostElement;
+    this._canvas = canvas.nativeElement;
     // console.log("INIT", hostElement, hostElement.nativeElement.offsetWidth, hostElement.nativeElement.offsetHeight);
-    this.canvas.width = hostElement.nativeElement.offsetWidth;
-    this.canvas.height = hostElement.nativeElement.offsetHeight;
+    this._canvas.width = hostElement.nativeElement.offsetWidth;
+    this._canvas.height = hostElement.nativeElement.offsetHeight;
 
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: this.canvas,
+    this._renderer = new THREE.WebGLRenderer({
+      canvas: this._canvas,
       alpha: true,    // transparent background
       antialias: true // smooth edges
     });
-    this.renderer.toneMapping = THREE.ReinhardToneMapping;
-    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
+    // this.renderer.toneMapping = THREE.ReinhardToneMapping;
+    this._renderer.setSize(this._canvas.clientWidth, this._canvas.clientHeight);
 
     // create the scene
     this.scene = new THREE.Scene();
-
-    this.camera = new THREE.PerspectiveCamera(
-      75,this.canvas.width / this.canvas.height, 0.1, 1000
-    );
-    this.camera.position.z = 5;
-    this.scene.add(this.camera);
-
+    
+    this._camera = new THREE.PerspectiveCamera(
+      75,this._canvas.width / this._canvas.height, 0.1, 1000
+      );
+      this._camera.position.set(0,0,-2);
+      this.scene.add(this._camera);
+      
+      this._controls = new OrbitControls (this._camera, this._renderer.domElement);
+      this._controls.update();
     // soft white light
-    this.light = new THREE.AmbientLight(0x404040);
-    this.light.position.z = 10;
-    this.scene.add(this.light);
+    this._light = new THREE.AmbientLight(0x404040);
+    this._light.position.set(1,1,-30);
+    // this._scene.add(this._light);
 
     const pointLight = new THREE.PointLight( 0xffffff, 1 );
-		this.camera.add( pointLight );
+    pointLight.position.set(-3, 3, 3);
+		this._camera.add( pointLight );
+  }
+  
+  initRootMesh(name:string) {
+     this.rootMesh = this.createMesh(name);
+     this.scene.add(this.rootMesh);
+  }
 
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshPhongMaterial({color: 0xffffff});
-    this.cube = new THREE.Mesh(geometry, material);
-    this.scene.add(this.cube);
-
+  createMesh(name:string):THREE.Mesh {
+    const geometry = new THREE.SphereGeometry(0.1, 10, 10);
+    const material = new THREE.MeshPhongMaterial({color: 0xf58220});
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    return mesh;
   }
 
   public animate(): void {
     // We have to run this outside angular zones,
     // because it could trigger heavy changeDetection cycles.
-    this.ngZone.runOutsideAngular(() => {
+    this._ngZone.runOutsideAngular(() => {
       if (document.readyState !== 'loading') {
         this.render();
       } else {
@@ -77,30 +89,30 @@ export class EngineService implements OnDestroy {
   }
 
   public render(): void {
-    this.frameId = requestAnimationFrame(() => {
+    this._frameId = requestAnimationFrame(() => {
       this.render();
     });
-    
-    this.cube.rotation.x += 0.01;
-    this.cube.rotation.y += 0.01;
-    this.renderer.render(this.scene, this.camera);
+    this._controls.update();
+    // this.cube.rotation.x += 0.01;
+    // this.cube.rotation.y += 0.01;
+    this._renderer.render(this.scene, this._camera);
   }
 
   public resize(): void {
-    const width = this.hostElement.nativeElement.offsetWidth;
-    const height = this.hostElement.nativeElement.offsetHeight;
+    const width = this._hostElement.nativeElement.offsetWidth;
+    const height = this._hostElement.nativeElement.offsetHeight;
 
     // console.log(this.hostElement, width, height);
-    this.renderer.setSize(width, height);
-    this.camera.aspect = this.canvas.clientWidth / this.canvas.clientHeight;
-    this.camera.updateProjectionMatrix();
+    this._renderer.setSize(width, height);
+    this._camera.aspect = this._canvas.clientWidth / this._canvas.clientHeight;
+    this._camera.updateProjectionMatrix();
 
   }
 
   ngOnDestroy(): void {
-    if (this.frameId != -1) {
-      cancelAnimationFrame(this.frameId);
-      this.frameId = -1;
+    if (this._frameId != -1) {
+      cancelAnimationFrame(this._frameId);
+      this._frameId = -1;
     }
   }
 }
