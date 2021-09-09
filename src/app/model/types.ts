@@ -30,6 +30,7 @@ export interface ConceptNode extends RDFNode {
 
 export interface ConceptSchemeNode extends RDFNode {
   hasTopConcept?: ConceptNode[];
+  aantalBegrippen:number;
 }
 
 export interface TreeRenderNode {

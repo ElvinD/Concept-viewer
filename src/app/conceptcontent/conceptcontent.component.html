@@ -34,6 +34,7 @@
     <ng-container *ngIf="conceptSchemeData$">
       <h1>{{this.conceptSchemeData$.label}}</h1>
       <mat-card>{{this.conceptSchemeData$.uri}}</mat-card><br />
+      <b>Aantal begrippen: </b>{{this.conceptSchemeData$.aantalBegrippen}}
       <div *ngFor="let comment of conceptSchemeData$.comment" [innerHTML]="comment.string"></div><br />
       <mat-divider></mat-divider><br />
     </ng-container>
