@@ -69,7 +69,7 @@ export class ExplorerComponent implements OnInit {
     this.renderView.reset();
     const rootMesh = this.renderView.initRootMesh(data.uri);
     data.hasTopConcept?.map(node => {
-      const mesh = this.renderView.createMesh(node.uri, 0.05);
+      const mesh = this.renderView.createMesh(node.uri, 0.02);
       this.renderView.addChildMesh(mesh);
       const edge = this.renderView.createEdge(rootMesh, mesh);
       this.renderView.addEdge(edge);

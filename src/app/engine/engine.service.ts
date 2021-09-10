@@ -23,9 +23,9 @@ export class EngineService implements OnDestroy {
   private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0xf58220, dashSize: 1, gapSize: 5 });
   // private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
   private _textMaterial= new THREE.MeshBasicMaterial ({
-    color: 0x0f0f0f,
+    color: 0x000000,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.8,
     side: THREE.DoubleSide
   });
   private _nodeMaterial: THREE.Material = new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true });
@@ -37,6 +37,7 @@ export class EngineService implements OnDestroy {
   public rootMesh!: THREE.Mesh;
   public childMeshes!: THREE.Mesh[];
   public edges!: ConnectedEdge[];
+  public labels!: THREE.Mesh[];
 
   constructor(private _ngZone: NgZone,  private database: DynamicDatabase,) { }
 
@@ -59,8 +60,7 @@ export class EngineService implements OnDestroy {
     this.scene = new THREE.Scene();
 
     this._camera = new THREE.PerspectiveCamera(
-      75, this._canvas.width / this._canvas.height, 0.1, 1000
-    );
+      75, this._canvas.width / this._canvas.height, 0.1, 500 );
     this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
 
@@ -85,18 +85,23 @@ export class EngineService implements OnDestroy {
       this.rootMesh.geometry.dispose();
     }
     this.childMeshes?.map(mesh => {
+      mesh.children.map(meshChild => {
+        mesh.remove(meshChild);
+        (meshChild as THREE.Mesh).geometry.dispose();
+      });
       this.scene.remove(mesh);
       mesh.geometry.dispose();
     });
-    this.childMeshes = [];
     this.edges?.map(edge => {
       if (edge.line) {
         this.scene.remove(edge.line);
         edge.line.geometry.dispose();
       }
     });
+    this.childMeshes = [];
     this.edges = [];
     this._targets = { sphere: [], helix: [], grid: [], table: [] };
+    this.labels = [];
   }
 
 
@@ -123,15 +128,16 @@ export class EngineService implements OnDestroy {
     this.childMeshes?.map(mesh => {
       const nodeData = this.database.getNode(mesh.name);
       if (nodeData) {
-        const textShape = this._labelFont.generateShapes(nodeData.label, 0.08);
+        const textShape = this._labelFont.generateShapes(nodeData.label, 0.04);
         const geometry = new THREE.ShapeGeometry(textShape);
         geometry.computeBoundingBox();
         if (geometry.boundingBox) {
           const xMid = - 0.5 * ( geometry.boundingBox.max.x - geometry.boundingBox.min.x );
-          geometry.translate( xMid, 0, 0 );
+          geometry.translate( xMid, 0.05, 0 );
           const text = new THREE.Mesh(geometry, this._textMaterial);
           text.position.z = 0;
           mesh.add(text);
+          this.labels.push(text);
         }
       }
     })
@@ -211,8 +217,8 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  createMesh(name: string, radius: number = 0.1): THREE.Mesh {
-    const geometry = new THREE.SphereGeometry(radius, 10, 10);
+  createMesh(name: string, radius: number = 0.02): THREE.Mesh {
+    const geometry = new THREE.SphereGeometry(radius, 6, 6);
     const mesh = new THREE.Mesh(geometry, this._nodeMaterial);
     mesh.name = name;
     return mesh;
@@ -250,6 +256,9 @@ export class EngineService implements OnDestroy {
     engine.edges?.forEach(edge => {
       edge.updatePosition();
     })
+    // engine.labels?.forEach(label => {
+    //   label.quaternion.copy(engine._camera.quaternion);
+    // })
   }
 
   public startFrameRendering(): void {
@@ -280,8 +289,15 @@ export class EngineService implements OnDestroy {
       this.render();
     });
     this._controls.update();
+    this.updateLabels();
     TWEEN.update();
     this._renderer.render(this.scene, this._camera);
+  }
+
+  private updateLabels() {
+    this.labels?.forEach(label => {
+      label.quaternion.copy(this._camera.quaternion);
+    })
   }
 
   public resize(): void {
