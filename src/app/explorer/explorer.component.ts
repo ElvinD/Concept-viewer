@@ -1,7 +1,8 @@
-import { Component, ElementRef, OnInit, AfterViewInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, ViewChild, Inject } from '@angular/core';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { EngineService } from '../engine/engine.service';
 import { ConceptSchemeNode } from '../model/types';
+import { DOCUMENT } from '@angular/common'
 
 
 @Component({
@@ -16,7 +17,8 @@ export class ExplorerComponent implements OnInit {
 
   constructor(private renderView: EngineService,
     private hostElement: ElementRef<HTMLDivElement>,
-    private database: DynamicDatabase) {
+    private database: DynamicDatabase,
+    @Inject(DOCUMENT) private _document: Document) {
   }
 
   ngOnInit(): void {
@@ -40,7 +42,8 @@ export class ExplorerComponent implements OnInit {
         }
       }
     });
-    this.renderView.animate();
+    this.renderView.startFrameRendering();
+    // this.renderView.renderOnDemand();
   }
   animateSphere() {
     this.renderView.animateSphere();
@@ -55,11 +58,17 @@ export class ExplorerComponent implements OnInit {
   }
 
   init3dNodes(data: ConceptSchemeNode) {
+    // const buttonLabels = this._document.querySelectorAll('.nodelink');
+    // buttonLabels.forEach(item => {
+    //   console.log("found item:", item);
+    // })
     this.renderView.reset();
-    this.renderView.initRootMesh(data.uri);
+    const rootMesh = this.renderView.initRootMesh(data.uri);
     data.hasTopConcept?.map(node => {
       const mesh = this.renderView.createMesh(node.uri, 0.05);
       this.renderView.addChildMesh(mesh);
+      const edge = this.renderView.createEdge(rootMesh, mesh);
+      this.renderView.addEdge(edge);
     });
     this.renderView.makeSphere();
     this.renderView.makeGrid();

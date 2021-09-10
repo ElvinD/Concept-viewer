@@ -320,7 +320,7 @@ export class ConceptlistComponent implements OnInit {
       this.dataSource.data = this.database.initialData();
       if (this.dataSource.data.length) {
         this.database.selectedNodeSubject.next(this.dataSource.data[0].item);
-        // this.treeControl.expand(this.treeControl.dataNodes[0]);
+        this.treeControl.expand(this.treeControl.dataNodes[0]);
       }
     });
   }

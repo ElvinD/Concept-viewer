@@ -2,6 +2,7 @@ import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import TWEEN from '@tweenjs/tween.js';
+import { ConnectedEdge } from './models';
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +15,8 @@ export class EngineService implements OnDestroy {
   private _controls!: OrbitControls;
   private _frameId: number = -1;
   private _hostElement!: ElementRef<HTMLDivElement>;
+  private _edgeMaterial: THREE.Material = new THREE.LineBasicMaterial({color:0x0f0f0f});
+  private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
   private _targets: { table: THREE.Object3D[]; sphere: THREE.Object3D[]; helix: THREE.Object3D[]; grid: THREE.Object3D[]; } = {
     sphere: [], helix: [], grid: [],
     table: []
@@ -22,6 +25,7 @@ export class EngineService implements OnDestroy {
   public scene!: THREE.Scene;
   public rootMesh!: THREE.Mesh;
   public childMeshes!: THREE.Mesh[];
+  public edges!: ConnectedEdge[];
 
   constructor(private _ngZone: NgZone) { }
 
@@ -52,6 +56,9 @@ export class EngineService implements OnDestroy {
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.update();
+    this._controls.addEventListener('change',(event) => {
+      this.renderOnDemand();
+    });
     // soft white light
     this._light = new THREE.AmbientLight(0x404040);
     this._light.position.set(1, 1, -30);
@@ -74,9 +81,10 @@ export class EngineService implements OnDestroy {
     this.childMeshes = [];
   }
 
-  initRootMesh(name: string) {
+  initRootMesh(name: string): THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]> {
     this.rootMesh = this.createMesh(name);
     this.scene.add(this.rootMesh);
+    return this.rootMesh;
   }
 
   addChildMesh(mesh: THREE.Mesh) {
@@ -85,11 +93,21 @@ export class EngineService implements OnDestroy {
     this.scene.add(mesh);
   }
 
+  addEdge(edge:ConnectedEdge) {
+    this.edges = this.edges ? this.edges: [];
+    this.edges.push(edge);
+    if (edge.line) {
+      console.log("adding edge: ", edge);
+      this.scene.add(edge.line);
+    }
+  }
+
   animateHelix():void {
     this.transform(this.childMeshes, this._targets.helix);
   }
 
   animateSphere():void {
+    console.log("sphere");
     this.transform(this.childMeshes, this._targets.sphere);
   }
   
@@ -144,10 +162,13 @@ export class EngineService implements OnDestroy {
 
   createMesh(name: string, radius: number = 0.1): THREE.Mesh {
     const geometry = new THREE.SphereGeometry(radius, 10, 10);
-    const material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(geometry, this._nodeMaterial);
     mesh.name = name;
     return mesh;
+  }
+
+  createEdge(subject:THREE.Object3D, object:THREE.Object3D): ConnectedEdge {
+    return new ConnectedEdge(subject, object, this._edgeMaterial);
   }
 
   transform(objects: THREE.Object3D[], targets: THREE.Object3D[], duration: number = 400) {
@@ -155,29 +176,30 @@ export class EngineService implements OnDestroy {
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
       const target = targets[i];
-      object.position.set (target.position.x,target.position.y,target.position.z);
-    }
-    //   new TWEEN.Tween(object.position)
-    //     .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
-    //     .easing(TWEEN.Easing.Exponential.InOut)
-    //     .start();
-    //   new TWEEN.Tween(object.rotation)
-    //     .to({ x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration)
-    //     .easing(TWEEN.Easing.Exponential.InOut)
-    //     .start();
+      // object.position.set (target.position.x,target.position.y,target.position.z);
     // }
+      new TWEEN.Tween(object.position)
+        .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
+        .easing(TWEEN.Easing.Exponential.InOut)
+        // .onUpdate(this._onUpdate)
+        .start();
+      // new TWEEN.Tween(object.rotation)
+      //   .to({ x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration)
+      //   .easing(TWEEN.Easing.Exponential.InOut)
+      //   .start();
+    }
 
-    // new TWEEN.Tween(this)
-    //   .to({}, duration * 2)
-    //   .onUpdate(this._onUpdate)
-    //   .start();
+    new TWEEN.Tween( this)
+      .to({}, duration * 2)
+      .onUpdate( this._onUpdate )
+      .start();
   }
 
   private _onUpdate():void {
-    console.log('update tween');
+    // console.log('update tween');
   }
 
-  public animate(): void {
+  public startFrameRendering(): void {
     // We have to run this outside angular zones,
     // because it could trigger heavy changeDetection cycles.
     this._ngZone.runOutsideAngular(() => {
@@ -195,13 +217,17 @@ export class EngineService implements OnDestroy {
     });
   }
 
-  public render(): void {
+  public renderOnDemand():void {
+    // this._controls.update();
+    this._renderer.render(this.scene, this._camera);
+  }
+
+  private render(): void {
     this._frameId = requestAnimationFrame(() => {
       this.render();
     });
     this._controls.update();
-    // this.cube.rotation.x += 0.01;
-    // this.cube.rotation.y += 0.01;
+    TWEEN.update();
     this._renderer.render(this.scene, this._camera);
   }
 
