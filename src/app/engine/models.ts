@@ -11,5 +11,13 @@ export class ConnectedEdge  {
     this.points.push(object.position);
     const geometry = new THREE.BufferGeometry().setFromPoints(this.points);
     this.line = new THREE.Line (geometry, material);
+    this.line.computeLineDistances();
+  }
+
+  updatePosition() {
+    this.points = [];
+    this.points.push(this.subject.position);
+    this.points.push(this.object.position);
+    this.line?.geometry.setFromPoints(this.points);
   }
 }

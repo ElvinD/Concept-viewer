@@ -57,6 +57,10 @@ export class ExplorerComponent implements OnInit {
     this.renderView.animateHelix();
   }
 
+  animateTable() {
+    this.renderView.animateTable();
+  }
+
   init3dNodes(data: ConceptSchemeNode) {
     // const buttonLabels = this._document.querySelectorAll('.nodelink');
     // buttonLabels.forEach(item => {
@@ -73,6 +77,8 @@ export class ExplorerComponent implements OnInit {
     this.renderView.makeSphere();
     this.renderView.makeGrid();
     this.renderView.makeHelix();
+    this.renderView.createLabels();
+    // this.renderView.makeTable();
     this.animateSphere();
   }
 }

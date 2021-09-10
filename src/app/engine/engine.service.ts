@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import TWEEN from '@tweenjs/tween.js';
 import { ConnectedEdge } from './models';
+import { Font } from 'three';
+import { DynamicDatabase } from '../conceptlist/conceptlist.component';
+
 
 @Injectable({
   providedIn: 'root'
@@ -14,12 +17,20 @@ export class EngineService implements OnDestroy {
   private _light!: THREE.AmbientLight;
   private _controls!: OrbitControls;
   private _frameId: number = -1;
+  private _labelFont!: Font;
+  private _fontLoader! : THREE.FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
-  private _edgeMaterial: THREE.Material = new THREE.LineBasicMaterial({color:0x0f0f0f});
-  private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
+  private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0xf58220, dashSize: 1, gapSize: 5 });
+  // private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
+  private _textMaterial= new THREE.MeshBasicMaterial ({
+    color: 0x0f0f0f,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide
+  });
+  private _nodeMaterial: THREE.Material = new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true });
   private _targets: { table: THREE.Object3D[]; sphere: THREE.Object3D[]; helix: THREE.Object3D[]; grid: THREE.Object3D[]; } = {
-    sphere: [], helix: [], grid: [],
-    table: []
+    sphere: [], helix: [], grid: [], table: []
   };
 
   public scene!: THREE.Scene;
@@ -27,7 +38,7 @@ export class EngineService implements OnDestroy {
   public childMeshes!: THREE.Mesh[];
   public edges!: ConnectedEdge[];
 
-  constructor(private _ngZone: NgZone) { }
+  constructor(private _ngZone: NgZone,  private database: DynamicDatabase,) { }
 
   public createScene(canvas: ElementRef<HTMLCanvasElement>, hostElement: ElementRef<HTMLDivElement>): void {
     // The first step is to get the reference of the canvas element from our HTML document
@@ -44,19 +55,18 @@ export class EngineService implements OnDestroy {
     });
     // this.renderer.toneMapping = THREE.ReinhardToneMapping;
     this._renderer.setSize(this._canvas.clientWidth, this._canvas.clientHeight);
-
     // create the scene
     this.scene = new THREE.Scene();
 
     this._camera = new THREE.PerspectiveCamera(
       75, this._canvas.width / this._canvas.height, 0.1, 1000
     );
-    this._camera.position.set(0, 0, -2);
+    this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.update();
-    this._controls.addEventListener('change',(event) => {
+    this._controls.addEventListener('change', (event) => {
       this.renderOnDemand();
     });
     // soft white light
@@ -77,14 +87,54 @@ export class EngineService implements OnDestroy {
     this.childMeshes?.map(mesh => {
       this.scene.remove(mesh);
       mesh.geometry.dispose();
-    })
+    });
     this.childMeshes = [];
+    this.edges?.map(edge => {
+      if (edge.line) {
+        this.scene.remove(edge.line);
+        edge.line.geometry.dispose();
+      }
+    });
+    this.edges = [];
+    this._targets = { sphere: [], helix: [], grid: [], table: [] };
   }
+
 
   initRootMesh(name: string): THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]> {
     this.rootMesh = this.createMesh(name);
     this.scene.add(this.rootMesh);
     return this.rootMesh;
+  }
+
+  private loadFont() {
+    this._fontLoader = new THREE.FontLoader();
+    this._fontLoader.load( 'assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
+      this._labelFont = font;
+      this.createLabels();
+    });
+
+  }
+
+  createLabels() {
+    if (!this._labelFont) {
+      this.loadFont();
+      return;
+    }
+    this.childMeshes?.map(mesh => {
+      const nodeData = this.database.getNode(mesh.name);
+      if (nodeData) {
+        const textShape = this._labelFont.generateShapes(nodeData.label, 0.08);
+        const geometry = new THREE.ShapeGeometry(textShape);
+        geometry.computeBoundingBox();
+        if (geometry.boundingBox) {
+          const xMid = - 0.5 * ( geometry.boundingBox.max.x - geometry.boundingBox.min.x );
+          geometry.translate( xMid, 0, 0 );
+          const text = new THREE.Mesh(geometry, this._textMaterial);
+          text.position.z = 0;
+          mesh.add(text);
+        }
+      }
+    })
   }
 
   addChildMesh(mesh: THREE.Mesh) {
@@ -93,26 +143,29 @@ export class EngineService implements OnDestroy {
     this.scene.add(mesh);
   }
 
-  addEdge(edge:ConnectedEdge) {
-    this.edges = this.edges ? this.edges: [];
+  addEdge(edge: ConnectedEdge) {
+    this.edges = this.edges ? this.edges : [];
     this.edges.push(edge);
     if (edge.line) {
-      console.log("adding edge: ", edge);
+      // console.log("adding edge: ", edge);
       this.scene.add(edge.line);
     }
   }
 
-  animateHelix():void {
+  animateHelix(): void {
     this.transform(this.childMeshes, this._targets.helix);
   }
 
-  animateSphere():void {
-    console.log("sphere");
+  animateSphere(): void {
     this.transform(this.childMeshes, this._targets.sphere);
   }
-  
-  animateGrid():void {
+
+  animateGrid(): void {
     this.transform(this.childMeshes, this._targets.grid);
+  }
+
+  animateTable(): void {
+    this.transform(this.childMeshes, this._targets.table);
   }
 
   public makeHelix(): void {
@@ -133,10 +186,8 @@ export class EngineService implements OnDestroy {
   }
 
   public makeGrid(): void {
-    const vector = new THREE.Vector3();
     const distance = this.childMeshes.length;
     for (let i = 0, l = distance; i < l; i++) {
-      // const object = this.childMeshes[i];
       const object = new THREE.Object3D();
       object.position.x = ((i % 5) * .5) - 1;
       object.position.y = (- (Math.floor(i / 5) % 5) * .5) + 1;
@@ -167,7 +218,7 @@ export class EngineService implements OnDestroy {
     return mesh;
   }
 
-  createEdge(subject:THREE.Object3D, object:THREE.Object3D): ConnectedEdge {
+  createEdge(subject: THREE.Object3D, object: THREE.Object3D): ConnectedEdge {
     return new ConnectedEdge(subject, object, this._edgeMaterial);
   }
 
@@ -177,7 +228,7 @@ export class EngineService implements OnDestroy {
       const object = objects[i];
       const target = targets[i];
       // object.position.set (target.position.x,target.position.y,target.position.z);
-    // }
+      // }
       new TWEEN.Tween(object.position)
         .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
         .easing(TWEEN.Easing.Exponential.InOut)
@@ -189,14 +240,16 @@ export class EngineService implements OnDestroy {
       //   .start();
     }
 
-    new TWEEN.Tween( this)
+    new TWEEN.Tween(this)
       .to({}, duration * 2)
-      .onUpdate( this._onUpdate )
+      .onUpdate(this._onUpdate)
       .start();
   }
 
-  private _onUpdate():void {
-    // console.log('update tween');
+  private _onUpdate(engine: EngineService): void {
+    engine.edges?.forEach(edge => {
+      edge.updatePosition();
+    })
   }
 
   public startFrameRendering(): void {
@@ -217,7 +270,7 @@ export class EngineService implements OnDestroy {
     });
   }
 
-  public renderOnDemand():void {
+  public renderOnDemand(): void {
     // this._controls.update();
     this._renderer.render(this.scene, this._camera);
   }

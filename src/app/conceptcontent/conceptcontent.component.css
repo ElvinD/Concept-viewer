@@ -1,6 +1,6 @@
 
 .content {
-  width:100%;
+  padding: 5px 10px 5px 10px;
 }
 .contentcontainer {
   overflow-y: auto;
@@ -10,13 +10,13 @@
 }
 
 :host {
+  height:100%;
   display: flex;
   flex-grow: 1;
   background-color: white;
   border: grey;
   border-style: dotted;
-  border-width: 2px 0 2px 2px;
-  padding: 5px 10px 5px 10px;
+  border-width: 2px 0 0 0;
 }
 
 h1 {
