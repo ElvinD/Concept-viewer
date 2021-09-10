@@ -20,15 +20,15 @@ export class EngineService implements OnDestroy {
   private _labelFont!: Font;
   private _fontLoader! : THREE.FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
-  private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0xf58220, dashSize: 1, gapSize: 5 });
-  // private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
+  private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0x58595b, dashSize: 1, gapSize: 5 });
   private _textMaterial= new THREE.MeshBasicMaterial ({
     color: 0x000000,
     transparent: true,
     opacity: 0.8,
     side: THREE.DoubleSide
   });
-  private _nodeMaterial: THREE.Material = new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true });
+  private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
+  // private _nodeMaterial: THREE.Material = new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true });
   private _targets: { table: THREE.Object3D[]; sphere: THREE.Object3D[]; helix: THREE.Object3D[]; grid: THREE.Object3D[]; } = {
     sphere: [], helix: [], grid: [], table: []
   };
@@ -72,10 +72,10 @@ export class EngineService implements OnDestroy {
     // soft white light
     this._light = new THREE.AmbientLight(0x404040);
     this._light.position.set(1, 1, -30);
-    // this._scene.add(this._light);
-
+    this.scene.add(this._light);
+// 
     const pointLight = new THREE.PointLight(0xffffff, 1);
-    pointLight.position.set(-3, 3, 3);
+    pointLight.position.set(0, 0, 16);
     this._camera.add(pointLight);
   }
 

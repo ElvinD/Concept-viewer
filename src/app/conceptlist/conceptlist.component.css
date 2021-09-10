@@ -1,8 +1,8 @@
 .navcontainer {
   overflow: auto;
   height:80vh;
-  min-width:40vh;
-  max-width:100vh;
+  /* min-width:40vh;
+  max-width:100vh; */
   direction:rtl; 
   /* background-color: beige; */
 }
