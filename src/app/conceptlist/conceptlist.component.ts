@@ -20,6 +20,7 @@ declare global {
     dataMap: any;
     data: any;
     treeControl: any;
+    initialData: any;
   }
 }
 
@@ -294,10 +295,7 @@ export class ConceptlistComponent implements OnInit {
     if (domainURI !== undefined) {
       conceptURI = concept.uri.replace(domainURI, "");
     }
-
-    
-    // console.log("url:", concept?.uri);
-    console.log("strippedURI:", conceptURI);
+    // console.log("strippedURI:", conceptURI);
     this.router.navigateByUrl('/' + conceptURI);
     this.database.selectedNodeSubject.next(event.item);
   }

@@ -19,6 +19,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { ConceptcontentpopupComponent } from './conceptcontentpopup/conceptcontentpopup.component';
 import { MatDialogModule } from '@angular/material/dialog';
 import { RouterModule } from '@angular/router';
+import { ExplorerComponent } from './explorer/explorer.component';
+
 
 
 @NgModule({
@@ -26,7 +28,9 @@ import { RouterModule } from '@angular/router';
     AppComponent,
     ConceptlistComponent,
     ConceptcontentComponent,
-    ConceptcontentpopupComponent
+    ConceptcontentpopupComponent,
+    ExplorerComponent,
+
   ],
   imports: [
     MatChipsModule,

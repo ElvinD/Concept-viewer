@@ -1,20 +1,22 @@
-.content {
-  margin: 2px;
-}
 
+.content {
+  padding: 5px 10px 5px 10px;
+}
 .contentcontainer {
-  overflow: auto;
-  height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height:40vh;
+  max-height: 80vh;
 }
 
 :host {
+  height:100%;
   display: flex;
   flex-grow: 1;
   background-color: white;
   border: grey;
   border-style: dotted;
-  border-width: 2px;
-  padding: 5px 10px 5px 10px;
+  border-width: 2px 0 0 0;
 }
 
 h1 {

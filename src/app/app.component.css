@@ -9,3 +9,7 @@
 .mainbody {
   display:flex;
 }
+
+.bodycontent {
+  min-width:40%;
+}

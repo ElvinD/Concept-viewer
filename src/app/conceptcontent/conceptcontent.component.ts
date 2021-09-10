@@ -31,6 +31,7 @@ export class ConceptcontentComponent implements OnInit {
           case "ConceptScheme":
             this.conceptData$ = undefined;
             this.conceptSchemeData$ = this.database.getNode(node) as ConceptSchemeNode;
+            console.log("toon conceptscheme",  this.conceptSchemeData$ )
             break;
 
           default:
@@ -41,19 +42,12 @@ export class ConceptcontentComponent implements OnInit {
   }
 
   nodeClicked(node: RDFNode) {
-    // const existingNode = this.database.getNode(node.uri);
-    // if (existingNode !== undefined) {
-    //   this.showPopup(existingNode);
-    // } else {
-    //   console.log("need to fetch: ", node);
       this.database.loadConcept(node.uri).then((result) => {
         this.showPopup(result);
       });
-    // }
   }
 
   protected showPopup(node: RDFNode) {
-    console.log("show popup: ", node);
     if (this.conceptData$ === undefined) return;
     const config = new MatDialogConfig();
     config.disableClose = false;

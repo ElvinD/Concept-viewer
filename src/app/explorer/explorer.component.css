@@ -1,0 +1,21 @@
+:host {
+  display: flex;
+  flex-grow: 1;
+  background-color: white;
+  margin-left: 5px;
+}
+
+.engine-wrapper {
+   
+  width:100%; 
+  background-color: white;
+  z-index:0;
+}
+
+#renderCanvas:focus {
+  outline: none;
+}
+
+/* #renderCanvas {
+   
+} */
