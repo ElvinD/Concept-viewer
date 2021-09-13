@@ -289,6 +289,10 @@ export class EngineService implements OnDestroy {
     });
   }
 
+  public selectNode(id:string) {
+    
+  }
+
   get cameraDeltaPos(): THREE.Vector3 {
     return this._camera.position;
   }
@@ -311,7 +315,6 @@ export class EngineService implements OnDestroy {
       this.cameraTargetBox.position.set(0, 0, camDistance);
       const targetPos: THREE.Vector3 = new THREE.Vector3();
       this.cameraTargetBox.getWorldPosition(targetPos);
-      // this.cameraDeltaPos = targetPos;
       new TWEEN.Tween(this.cameraDeltaPos)
         .to(targetPos , 400)
         .onStart((event)=> {
