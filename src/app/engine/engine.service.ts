@@ -38,7 +38,8 @@ export class EngineService implements OnDestroy {
   private _cameraDeltaPos = new THREE.Vector3();
   public scene!: THREE.Scene;
   public rootMesh!: THREE.Mesh;
-  public childMeshes!: THREE.Mesh[];
+  public baseMeshes!: THREE.Mesh[];
+  public expandedMeshes!: THREE.Mesh[];
   public edges!: ConnectedEdge[];
   public labels!: THREE.Mesh[];
 
@@ -65,7 +66,7 @@ export class EngineService implements OnDestroy {
     this.scene.fog = new THREE.FogExp2(0xffffff, 0.4);
 
     this._camera = new THREE.PerspectiveCamera(
-      75, this._canvas.width / this._canvas.height, 0.1, 500);
+      50, this._canvas.width / this._canvas.height, 0.1, 500);
     this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
     // this.scene.add(this.boxDebugger);
@@ -92,7 +93,7 @@ export class EngineService implements OnDestroy {
       this.scene.remove(this.rootMesh);
       this.rootMesh.geometry.dispose();
     }
-    this.childMeshes?.map(mesh => {
+    this.baseMeshes?.map(mesh => {
       mesh.children.map(meshChild => {
         mesh.remove(meshChild);
         (meshChild as THREE.Mesh).geometry.dispose();
@@ -106,7 +107,7 @@ export class EngineService implements OnDestroy {
         edge.line.geometry.dispose();
       }
     });
-    this.childMeshes = [];
+    this.baseMeshes = [];
     this.edges = [];
     this._targets = { sphere: [], helix: [], grid: [], table: [] };
     this.labels = [];
@@ -133,7 +134,7 @@ export class EngineService implements OnDestroy {
       this.loadFont();
       return;
     }
-    this.childMeshes?.map(mesh => {
+    this.baseMeshes?.map(mesh => {
       const nodeData = this.database.getNode(mesh.name);
       if (nodeData) {
         const textShape = this._labelFont.generateShapes(nodeData.label, 0.04);
@@ -152,8 +153,8 @@ export class EngineService implements OnDestroy {
   }
 
   addChildMesh(mesh: THREE.Mesh) {
-    this.childMeshes = this.childMeshes ? this.childMeshes : [];
-    this.childMeshes.push(mesh);
+    this.baseMeshes = this.baseMeshes ? this.baseMeshes : [];
+    this.baseMeshes.push(mesh);
     this.scene.add(mesh);
   }
 
@@ -167,24 +168,24 @@ export class EngineService implements OnDestroy {
   }
 
   animateHelix(): void {
-    this.transform(this.childMeshes, this._targets.helix);
+    this.transform(this.baseMeshes, this._targets.helix);
   }
 
   animateSphere(): void {
-    this.transform(this.childMeshes, this._targets.sphere);
+    this.transform(this.baseMeshes, this._targets.sphere);
   }
 
   animateGrid(): void {
-    this.transform(this.childMeshes, this._targets.grid);
+    this.transform(this.baseMeshes, this._targets.grid);
   }
 
   animateTable(): void {
-    this.transform(this.childMeshes, this._targets.table);
+    this.transform(this.baseMeshes, this._targets.table);
   }
 
   public makeHelix(): void {
     const vector = new THREE.Vector3();
-    const distance = this.childMeshes.length;
+    const distance = this.baseMeshes.length;
     for (let i = 0, l = distance; i < l; i++) {
       const theta = i * 0.175 + Math.PI;
       const y = - (i * .05) + distance * 0.025;
@@ -200,7 +201,7 @@ export class EngineService implements OnDestroy {
   }
 
   public makeGrid(): void {
-    const distance = this.childMeshes.length;
+    const distance = this.baseMeshes.length;
     for (let i = 0, l = distance; i < l; i++) {
       const object = new THREE.Object3D();
       object.position.x = ((i % 5) * .5) - 1;
@@ -212,7 +213,7 @@ export class EngineService implements OnDestroy {
 
   public makeSphere(): void {
     const vector = new THREE.Vector3();
-    const distance = this.childMeshes.length;
+    const distance = this.baseMeshes.length;
     for (let i = 0, l = distance; i < l; i++) {
       const phi = Math.acos(- 1 + (2 * i) / l);
       const theta = Math.sqrt(l * Math.PI) * phi;
@@ -290,7 +291,7 @@ export class EngineService implements OnDestroy {
   }
 
   public selectNode(id:string) {
-    
+
   }
 
   get cameraDeltaPos(): THREE.Vector3 {
