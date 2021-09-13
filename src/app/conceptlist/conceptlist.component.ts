@@ -7,6 +7,7 @@ import { BehaviorSubject, merge, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { GET_Concept, GET_Concepts, GET_ConceptSchemes } from '../model/queries';
 import { Query, RDFNode } from '../model/types';
+import { CustomInteractionEvent, InteractionEventTypes, InteractionService } from '../services/interaction.service';
 
 
 /** Flat node with expandable and level information */
@@ -278,7 +279,9 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 })
 export class ConceptlistComponent implements OnInit {
 
-  constructor(public database: DynamicDatabase, private router:Router) {
+  constructor(public database: DynamicDatabase, 
+              private router:Router, 
+              private interactionService: InteractionService) {
     this.treeControl = new FlatTreeControl<DynamicFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database);
   }
@@ -286,10 +289,18 @@ export class ConceptlistComponent implements OnInit {
   treeControl: FlatTreeControl<DynamicFlatNode>;
   dataSource: DynamicDataSource;
 
-  nodeClicked(event: DynamicFlatNode) {
-    const concept = this.database.getNode(event.item);
+  enterNodeHover(node:DynamicFlatNode) {
+    this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.OVER, node, node.item));
+  }
+  
+  exitNodeHover(node:DynamicFlatNode) {
+    this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.OUT, node, node.item));
+  }
+
+  nodeClicked(node: DynamicFlatNode) {
+    const concept = this.database.getNode(node.item);
     if (concept == undefined) return;
-    const conceptName = concept.uri.match(/\/([^\/]+)[\/]?$/)?.pop();
+    // const conceptName = concept.uri.match(/\/([^\/]+)[\/]?$/)?.pop();
     const domainURI = concept.uri.match(/(http:|https:)\/\/(www\.)?(\w|\d)+.+?\//ig)?.pop();
     let conceptURI = "";
     if (domainURI !== undefined) {
@@ -297,7 +308,8 @@ export class ConceptlistComponent implements OnInit {
     }
     // console.log("strippedURI:", conceptURI);
     this.router.navigateByUrl('/' + conceptURI);
-    this.database.selectedNodeSubject.next(event.item);
+    this.database.selectedNodeSubject.next(node.item);
+    this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.SELECT, node, node.item));
   }
 
   getLevel = (node: DynamicFlatNode) => {

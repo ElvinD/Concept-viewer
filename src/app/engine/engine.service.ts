@@ -6,7 +6,6 @@ import { ConnectedEdge } from './models';
 import { Font } from 'three';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 
-
 @Injectable({
   providedIn: 'root'
 })
@@ -18,10 +17,10 @@ export class EngineService implements OnDestroy {
   private _controls!: OrbitControls;
   private _frameId: number = -1;
   private _labelFont!: Font;
-  private _fontLoader! : THREE.FontLoader;
+  private _fontLoader!: THREE.FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
   private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0x58595b, dashSize: 1, gapSize: 5 });
-  private _textMaterial= new THREE.MeshBasicMaterial ({
+  private _textMaterial = new THREE.MeshBasicMaterial({
     color: 0x000000,
     transparent: true,
     opacity: 0.8,
@@ -32,14 +31,19 @@ export class EngineService implements OnDestroy {
   private _targets: { table: THREE.Object3D[]; sphere: THREE.Object3D[]; helix: THREE.Object3D[]; grid: THREE.Object3D[]; } = {
     sphere: [], helix: [], grid: [], table: []
   };
-
+  // private boxDebugger = new THREE.BoxHelper(new THREE.Mesh(new THREE.SphereGeometry(0.1), this._nodeMaterial), 0xffff00);
+  private _cameraIsAnimating = false;
+  private centerTargetBox = this.createTargetBox();
+  private cameraTargetBox = this.createTargetBox();
+  private _cameraDeltaPos = new THREE.Vector3();
   public scene!: THREE.Scene;
   public rootMesh!: THREE.Mesh;
   public childMeshes!: THREE.Mesh[];
   public edges!: ConnectedEdge[];
   public labels!: THREE.Mesh[];
 
-  constructor(private _ngZone: NgZone,  private database: DynamicDatabase,) { }
+
+  constructor(private _ngZone: NgZone, private database: DynamicDatabase,) { }
 
   public createScene(canvas: ElementRef<HTMLCanvasElement>, hostElement: ElementRef<HTMLDivElement>): void {
     // The first step is to get the reference of the canvas element from our HTML document
@@ -58,11 +62,15 @@ export class EngineService implements OnDestroy {
     this._renderer.setSize(this._canvas.clientWidth, this._canvas.clientHeight);
     // create the scene
     this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.FogExp2(0xffffff, 0.4);
 
     this._camera = new THREE.PerspectiveCamera(
-      75, this._canvas.width / this._canvas.height, 0.1, 500 );
+      75, this._canvas.width / this._canvas.height, 0.1, 500);
     this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
+    // this.scene.add(this.boxDebugger);
+    // this.scene.add(this.centerTargetBox);
+    this.centerTargetBox.add(this.cameraTargetBox);
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.update();
@@ -73,7 +81,7 @@ export class EngineService implements OnDestroy {
     this._light = new THREE.AmbientLight(0x404040);
     this._light.position.set(1, 1, -30);
     this.scene.add(this._light);
-// 
+    // 
     const pointLight = new THREE.PointLight(0xffffff, 1);
     pointLight.position.set(0, 0, 16);
     this._camera.add(pointLight);
@@ -113,7 +121,7 @@ export class EngineService implements OnDestroy {
 
   private loadFont() {
     this._fontLoader = new THREE.FontLoader();
-    this._fontLoader.load( 'assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
+    this._fontLoader.load('assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
       this._labelFont = font;
       this.createLabels();
     });
@@ -132,8 +140,8 @@ export class EngineService implements OnDestroy {
         const geometry = new THREE.ShapeGeometry(textShape);
         geometry.computeBoundingBox();
         if (geometry.boundingBox) {
-          const xMid = - 0.5 * ( geometry.boundingBox.max.x - geometry.boundingBox.min.x );
-          geometry.translate( xMid, 0.05, 0 );
+          const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+          geometry.translate(xMid, 0.05, 0);
           const text = new THREE.Mesh(geometry, this._textMaterial);
           text.position.z = 0;
           mesh.add(text);
@@ -217,6 +225,13 @@ export class EngineService implements OnDestroy {
     }
   }
 
+  private createTargetBox(): THREE.Object3D {
+    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    return cube;
+  }
+
   createMesh(name: string, radius: number = 0.02): THREE.Mesh {
     const geometry = new THREE.SphereGeometry(radius, 6, 6);
     const mesh = new THREE.Mesh(geometry, this._nodeMaterial);
@@ -233,17 +248,12 @@ export class EngineService implements OnDestroy {
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
       const target = targets[i];
-      // object.position.set (target.position.x,target.position.y,target.position.z);
       // }
       new TWEEN.Tween(object.position)
         .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
         .easing(TWEEN.Easing.Exponential.InOut)
         // .onUpdate(this._onUpdate)
         .start();
-      // new TWEEN.Tween(object.rotation)
-      //   .to({ x: target.rotation.x, y: target.rotation.y, z: target.rotation.z }, Math.random() * duration + duration)
-      //   .easing(TWEEN.Easing.Exponential.InOut)
-      //   .start();
     }
 
     new TWEEN.Tween(this)
@@ -277,6 +287,63 @@ export class EngineService implements OnDestroy {
         // this.resize();
       });
     });
+  }
+
+  get cameraDeltaPos(): THREE.Vector3 {
+    return this._camera.position;
+  }
+
+  set cameraDeltaPos(val: THREE.Vector3) {
+    this._camera.position.set(val.x, val.y, val.z);
+    this._camera.lookAt(this.centerTargetBox.position);
+    this._cameraDeltaPos = val;
+  };
+
+  public focusOnNode(id: string) {
+    const node = this.scene.getObjectByName(id);
+    if (this._cameraIsAnimating) {
+      return;
+    }
+    if (node) {
+      this.centerTargetBox.lookAt(node.position);
+      let camDistance = this._camera.position.distanceTo(this.centerTargetBox.position);
+      if (camDistance < 1.5) camDistance = 1.5;
+      this.cameraTargetBox.position.set(0, 0, camDistance);
+      const targetPos: THREE.Vector3 = new THREE.Vector3();
+      this.cameraTargetBox.getWorldPosition(targetPos);
+      // this.cameraDeltaPos = targetPos;
+      new TWEEN.Tween(this.cameraDeltaPos)
+        .to(targetPos , 400)
+        .onStart((event)=> {
+          this._onCameraTweenStart(event)
+        })
+        .onComplete((event)=> {
+          this._onCameraTweenComplete(event)
+        })
+        .onUpdate((event)=> {
+          this._onCameraTween (event);
+        })
+        .start();
+    };
+  }
+  private _onCameraTweenStart(delta:THREE.Vector3) {
+    this._controls.enabled = false;
+    this._cameraIsAnimating = true;
+  }
+
+  private _onCameraTweenComplete(delta:THREE.Vector3) {
+    this._controls.enabled = true;
+    this._cameraIsAnimating = false;
+  }
+  private _onCameraTween(delta:THREE.Vector3): void {
+    this.cameraDeltaPos = delta;
+  }
+
+  public unFocusNode(id: string) {
+    // const node = this.scene.getObjectByName(id);
+    // if (node) {
+    //   node.scale.set(1, 1, 1);
+    // };
   }
 
   public renderOnDemand(): void {

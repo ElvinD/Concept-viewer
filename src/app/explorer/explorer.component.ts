@@ -3,6 +3,7 @@ import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { EngineService } from '../engine/engine.service';
 import { ConceptSchemeNode } from '../model/types';
 import { DOCUMENT } from '@angular/common'
+import { InteractionEventTypes, InteractionService } from '../services/interaction.service';
 
 
 @Component({
@@ -18,12 +19,30 @@ export class ExplorerComponent implements OnInit {
   constructor(private renderView: EngineService,
     private hostElement: ElementRef<HTMLDivElement>,
     private database: DynamicDatabase,
+    private interactionService: InteractionService,
     @Inject(DOCUMENT) private _document: Document) {
   }
 
   ngOnInit(): void {
     this.renderView.createScene(this.rendererCanvas, this.hostElement);
+    this.interactionService.eventSubmitter.subscribe(event => {
+      switch (event.type) {
+        case InteractionEventTypes.OVER:
+          this.renderView.focusOnNode(event.value);
+          break;
 
+        case InteractionEventTypes.OUT:
+          this.renderView.unFocusNode(event.value);
+          break;
+
+        case InteractionEventTypes.SELECT:
+          break;
+
+        default:
+          break;
+
+      }
+    });
     this.database.selectedNodeSubject.subscribe((node) => {
       if (this.database.getNode(node) !== undefined) {
         switch (this.database.getNode(node)?.__typename) {
