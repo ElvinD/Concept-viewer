@@ -72,7 +72,7 @@ export class EngineService implements OnDestroy {
     this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
     // this.scene.add(this.boxDebugger);
-    // this.scene.add(this.centerTargetBox);
+    // this.scene.add(this._centerTargetBox);
     this._centerTargetBox.add(this._cameraTargetBox);
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
@@ -131,11 +131,10 @@ export class EngineService implements OnDestroy {
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
       const target = targets[i];
-      // }
+      object.userData["pos"] = target.position;
       new TWEEN.Tween(object.position)
         .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
         .easing(TWEEN.Easing.Exponential.InOut)
-        // .onUpdate(this._onUpdate)
         .start();
     }
 
@@ -143,6 +142,10 @@ export class EngineService implements OnDestroy {
       .to({}, duration * 2)
       .onUpdate(this._onUpdate)
       .start();
+  }
+
+  private _storePosition(param:any) {
+    console.log ("store pos:", param);
   }
 
   private _onUpdate(engine: EngineService): void {
@@ -211,8 +214,9 @@ export class EngineService implements OnDestroy {
         const node = this.scene.getObjectByName(nodeId);
         if (node) {
           newPos = node.userData["pos"];
-          node.userData["pos"] = null;
-          delete node.userData["pos"];
+          // node.userData["pos"] = null;
+          // delete node.userData["pos"];
+          console.log("reset to:", newPos)
           new TWEEN.Tween(node.position)
             .to(newPos, 200)
             .start();
@@ -239,8 +243,8 @@ export class EngineService implements OnDestroy {
         const previousSelectedNode = this.scene.getObjectByName(previousSelectedNodeId);
         if (previousSelectedNode) {
           newPos = previousSelectedNode.userData["pos"];
-          previousSelectedNode.userData["pos"] = null;
-          delete previousSelectedNode.userData["pos"];
+          // previousSelectedNode.userData["pos"] = null;
+          // delete previousSelectedNode.userData["pos"];
           new TWEEN.Tween(previousSelectedNode.position)
           .to(newPos, 200)
           .start();
@@ -261,8 +265,8 @@ export class EngineService implements OnDestroy {
     }
     newPos = new THREE.Vector3();
     if (node) {
-      if (node.userData["pos"] == undefined) {
-        node.userData["pos"] = new THREE.Vector3(node.position.x, node.position.y, node.position.z);
+      // if (node.userData["pos"] == undefined) {
+        // node.userData["pos"] = new THREE.Vector3(node.position.x, node.position.y, node.position.z);
         const ray: THREE.Ray = new THREE.Ray(this._centerTargetBox.position, node.position);
         ray.at(1.5, newPos);
         new TWEEN.Tween(node.position)
@@ -273,7 +277,7 @@ export class EngineService implements OnDestroy {
           .to(newPos, 200)
           .onComplete(() => { })
           .start();
-      }
+      // }
     }
   }
 
@@ -373,7 +377,6 @@ export class EngineService implements OnDestroy {
       this._labelFont = font;
       this.createLabels();
     });
-
   }
 
   createLabels() {
