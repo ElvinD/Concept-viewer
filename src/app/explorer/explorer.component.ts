@@ -36,6 +36,7 @@ export class ExplorerComponent implements OnInit {
           break;
 
         case InteractionEventTypes.SELECT:
+          this.renderView.selectNode(event.value);
           break;
 
         default:
@@ -99,5 +100,9 @@ export class ExplorerComponent implements OnInit {
     this.renderView.createLabels();
     // this.renderView.makeTable();
     this.animateSphere();
+  }
+
+  canvasClicked(event:MouseEvent) {
+    this.renderView.clicked(event);
   }
 }

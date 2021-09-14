@@ -10,6 +10,7 @@ import { DynamicDatabase } from '../conceptlist/conceptlist.component';
   providedIn: 'root'
 })
 export class EngineService implements OnDestroy {
+
   private _canvas!: HTMLCanvasElement;
   private _renderer!: THREE.WebGLRenderer;
   private _camera!: THREE.PerspectiveCamera;
@@ -26,31 +27,31 @@ export class EngineService implements OnDestroy {
     opacity: 0.8,
     side: THREE.DoubleSide
   });
+  private _orangeBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xf58220 });
+  private _whiteBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
-  // private _nodeMaterial: THREE.Material = new THREE.MeshBasicMaterial({ color: 0x808080, wireframe: true });
   private _targets: { table: THREE.Object3D[]; sphere: THREE.Object3D[]; helix: THREE.Object3D[]; grid: THREE.Object3D[]; } = {
     sphere: [], helix: [], grid: [], table: []
   };
   // private boxDebugger = new THREE.BoxHelper(new THREE.Mesh(new THREE.SphereGeometry(0.1), this._nodeMaterial), 0xffff00);
-  private _cameraIsAnimating = false;
-  private centerTargetBox = this.createTargetBox();
-  private cameraTargetBox = this.createTargetBox();
+  private _centerTargetBox = this.createTargetBox();
+  private _cameraTargetBox = this.createTargetBox();
   private _cameraDeltaPos = new THREE.Vector3();
+  private _selectedNodes: string[] = [];
+
   public scene!: THREE.Scene;
   public rootMesh!: THREE.Mesh;
   public baseMeshes!: THREE.Mesh[];
   public expandedMeshes!: THREE.Mesh[];
+  public allMeshes!: THREE.Mesh[];
   public edges!: ConnectedEdge[];
   public labels!: THREE.Mesh[];
-
 
   constructor(private _ngZone: NgZone, private database: DynamicDatabase,) { }
 
   public createScene(canvas: ElementRef<HTMLCanvasElement>, hostElement: ElementRef<HTMLDivElement>): void {
-    // The first step is to get the reference of the canvas element from our HTML document
     this._hostElement = hostElement;
     this._canvas = canvas.nativeElement;
-    // console.log("INIT", hostElement, hostElement.nativeElement.offsetWidth, hostElement.nativeElement.offsetHeight);
     this._canvas.width = hostElement.nativeElement.offsetWidth;
     this._canvas.height = hostElement.nativeElement.offsetHeight;
 
@@ -61,7 +62,8 @@ export class EngineService implements OnDestroy {
     });
     // this.renderer.toneMapping = THREE.ReinhardToneMapping;
     this._renderer.setSize(this._canvas.clientWidth, this._canvas.clientHeight);
-    // create the scene
+    this._renderer.setPixelRatio(window.devicePixelRatio);
+
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0xffffff, 0.4);
 
@@ -71,9 +73,11 @@ export class EngineService implements OnDestroy {
     this.scene.add(this._camera);
     // this.scene.add(this.boxDebugger);
     // this.scene.add(this.centerTargetBox);
-    this.centerTargetBox.add(this.cameraTargetBox);
+    this._centerTargetBox.add(this._cameraTargetBox);
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
+    this._controls.target = this._centerTargetBox.position;
+    // window["controls"] = this._controls;
     this._controls.update();
     this._controls.addEventListener('change', (event) => {
       this.renderOnDemand();
@@ -89,6 +93,7 @@ export class EngineService implements OnDestroy {
   }
 
   reset() {
+    this._selectedNodes = [];
     if (this.rootMesh) {
       this.scene.remove(this.rootMesh);
       this.rootMesh.geometry.dispose();
@@ -100,6 +105,7 @@ export class EngineService implements OnDestroy {
       });
       this.scene.remove(mesh);
       mesh.geometry.dispose();
+      mesh.clear();
     });
     this.edges?.map(edge => {
       if (edge.line) {
@@ -118,6 +124,247 @@ export class EngineService implements OnDestroy {
     this.rootMesh = this.createMesh(name);
     this.scene.add(this.rootMesh);
     return this.rootMesh;
+  }
+
+  transform(objects: THREE.Object3D[], targets: THREE.Object3D[], duration: number = 400) {
+    TWEEN.removeAll();
+    for (let i = 0; i < objects.length; i++) {
+      const object = objects[i];
+      const target = targets[i];
+      // }
+      new TWEEN.Tween(object.position)
+        .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
+        .easing(TWEEN.Easing.Exponential.InOut)
+        // .onUpdate(this._onUpdate)
+        .start();
+    }
+
+    new TWEEN.Tween(this)
+      .to({}, duration * 2)
+      .onUpdate(this._onUpdate)
+      .start();
+  }
+
+  private _onUpdate(engine: EngineService): void {
+    engine.edges?.forEach(edge => {
+      edge.updatePosition();
+    })
+    // engine.labels?.forEach(label => {
+    //   label.quaternion.copy(engine._camera.quaternion);
+    // })
+  }
+
+  public startFrameRendering(): void {
+    // We have to run this outside angular zones,
+    // because it could trigger heavy changeDetection cycles.
+    this._ngZone.runOutsideAngular(() => {
+      if (document.readyState !== 'loading') {
+        this.render();
+      } else {
+        window.addEventListener('DOMContentLoaded', () => {
+          this.render();
+        });
+      }
+
+      window.addEventListener('resize', () => {
+        // this.resize();
+      });
+    });
+  }
+
+
+  get cameraDeltaPos(): THREE.Vector3 {
+    return this._camera.position;
+  }
+
+  set cameraDeltaPos(val: THREE.Vector3) {
+    this._camera.position.set(val.x, val.y, val.z);
+    this._camera.lookAt(this._centerTargetBox.position);
+    this._cameraDeltaPos = val;
+  };
+
+  clicked(event: MouseEvent) {
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2(event.offsetX, event.offsetY);
+    mouse.x = (event.offsetX / this._canvas.clientWidth) * 2 - 1;
+    mouse.y = - (event.offsetY / this._canvas.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, this._camera);
+    const intersects = raycaster.intersectObjects(this.scene.children);
+    if (intersects.length) {
+      console.log ("got some intersects", intersects);
+      for (let i = 0; i < intersects.length; i++) {
+        const object = intersects[i];
+        if (object.object instanceof THREE.Mesh) {
+          this.selectNode(object.object.name);
+        }
+      }
+    } else {
+      // this.collapseSelections();
+    }
+  }
+
+  public collapseSelections() {
+    let newPos = new THREE.Vector3();
+    if (this._selectedNodes.length == 1) {
+      const nodeId = this._selectedNodes.pop();
+      if (nodeId) {
+        const node = this.scene.getObjectByName(nodeId);
+        if (node) {
+          newPos = node.userData["pos"];
+          node.userData["pos"] = null;
+          delete node.userData["pos"];
+          new TWEEN.Tween(node.position)
+            .to(newPos, 200)
+            .start();
+          const newCameraPos = new THREE.Vector3();
+          new TWEEN.Tween(this._centerTargetBox.position)
+            .to(newCameraPos, 200)
+            .onComplete(() => {
+              // console.log("done returning to normal", this);
+            })
+            .start();
+        }
+      }
+    }
+  }
+
+
+
+  public selectNode(id: string) {
+    let newPos = new THREE.Vector3();
+    if (this._selectedNodes.length && this._selectedNodes.indexOf(id) == -1) {
+      //clear up old selection
+      const previousSelectedNodeId = this._selectedNodes.pop();
+      if (previousSelectedNodeId) {
+        const previousSelectedNode = this.scene.getObjectByName(previousSelectedNodeId);
+        if (previousSelectedNode) {
+          newPos = previousSelectedNode.userData["pos"];
+          previousSelectedNode.userData["pos"] = null;
+          delete previousSelectedNode.userData["pos"];
+          new TWEEN.Tween(previousSelectedNode.position)
+          .to(newPos, 200)
+          .start();
+        }
+      }
+    } else if (this._selectedNodes.indexOf(id) != -1) {
+      //already selected
+      console.log("already selected", id);
+      this.collapseSelections();
+      return;
+    }
+    const node = this.scene.getObjectByName(id);
+    if (this._selectedNodes.indexOf(id) == -1) {
+      this._selectedNodes.push(id);
+    } else {
+      console.log("already selected:", id);
+      return;
+    }
+    newPos = new THREE.Vector3();
+    if (node) {
+      if (node.userData["pos"] == undefined) {
+        node.userData["pos"] = new THREE.Vector3(node.position.x, node.position.y, node.position.z);
+        const ray: THREE.Ray = new THREE.Ray(this._centerTargetBox.position, node.position);
+        ray.at(1.5, newPos);
+        new TWEEN.Tween(node.position)
+          .to(newPos, 200)
+          .start();
+
+        new TWEEN.Tween(this._centerTargetBox.position)
+          .to(newPos, 200)
+          .onComplete(() => { })
+          .start();
+      }
+    }
+  }
+
+
+  public unFocusNode(id: string) {
+    // const node = this.scene.getObjectByName(id);
+    // if (node) {
+    //   node.scale.set(1, 1, 1);
+    // };
+  }
+
+  public focusOnNode(id: string) {
+    if (this._selectedNodes.length > 0) {
+      return;
+    }
+    const node = this.scene.getObjectByName(id);
+    TWEEN.removeAll();
+    if (node) {
+      this._centerTargetBox.lookAt(node.position);
+      // let camDistance = this._camera.position.distanceTo(this.centerTargetBox.position);
+      let camDistance = 2;
+      this._cameraTargetBox.position.set(0, 0, camDistance);
+      const targetPos: THREE.Vector3 = new THREE.Vector3();
+      this._cameraTargetBox.getWorldPosition(targetPos);
+      new TWEEN.Tween(this.cameraDeltaPos)
+        .to(targetPos, 400)
+        .onStart((event) => {
+          this._onCameraTweenStart(event)
+        })
+        .onComplete((event) => {
+          this._onCameraTweenComplete(event)
+        })
+        .onUpdate((event) => {
+          this._onCameraTween(event);
+        })
+        .start();
+    };
+  }
+  private _onCameraTweenStart(delta: THREE.Vector3) {
+    this._controls.enabled = false;
+  }
+
+  private _onCameraTweenComplete(delta: THREE.Vector3) {
+    this._controls.enabled = true;
+  }
+  private _onCameraTween(delta: THREE.Vector3): void {
+    this.cameraDeltaPos = delta;
+  }
+
+  public renderOnDemand(): void {
+    // this._controls.update();
+    this._renderer.render(this.scene, this._camera);
+  }
+
+  private render(): void {
+    this._frameId = requestAnimationFrame(() => {
+      this.render();
+    });
+    this._controls.update();
+    this.updateLabels();
+    // this.update2dIcons();
+    TWEEN.update();
+    this._renderer.render(this.scene, this._camera);
+  }
+
+  private updateLabels() {
+    this.labels?.forEach(label => {
+      label.quaternion.copy(this._camera.quaternion);
+    })
+  }
+
+  private update2dIcons() {
+    this.baseMeshes?.forEach(mesh => {
+      mesh.quaternion.copy(this._camera.quaternion);
+    })
+  }
+
+  public resize(): void {
+    const width = this._hostElement.nativeElement.offsetWidth;
+    const height = this._hostElement.nativeElement.offsetHeight;
+
+    this._renderer.setSize(width, height);
+    this._camera.aspect = this._canvas.clientWidth / this._canvas.clientHeight;
+    this._camera.updateProjectionMatrix();
+  }
+
+  ngOnDestroy(): void {
+    if (this._frameId != -1) {
+      cancelAnimationFrame(this._frameId);
+      this._frameId = -1;
+    }
   }
 
   private loadFont() {
@@ -234,156 +481,26 @@ export class EngineService implements OnDestroy {
   }
 
   createMesh(name: string, radius: number = 0.02): THREE.Mesh {
-    const geometry = new THREE.SphereGeometry(radius, 6, 6);
-    const mesh = new THREE.Mesh(geometry, this._nodeMaterial);
+    // const geometry = new THREE.CircleGeometry(radius, 24);
+    const geometry = new THREE.SphereGeometry(radius, 24, 24);
+    const mesh = new THREE.Mesh(geometry, this._orangeBasicMaterial);
     mesh.name = name;
     return mesh;
+    // return this.createDiscObject(name, this._whiteBasicMaterial, this._orangeBasicMaterial, radius);
+  }
+
+  createDiscObject(name: string, frontMaterial: THREE.Material, rearMaterial: THREE.Material, radius: number = 0.02): THREE.Object3D {
+    const frontGeom = new THREE.CircleGeometry(radius, 16);
+    const frontCircle = new THREE.Mesh(frontGeom, frontMaterial);
+    const rearGeom = new THREE.CircleGeometry(radius + 0.01, 16);
+    const rearCircle = new THREE.Mesh(rearGeom, rearMaterial);
+    rearCircle.position.set(0, 0, 0.01);
+    const group = new THREE.Group();
+    group.add(frontCircle, rearCircle);
+    return group;
   }
 
   createEdge(subject: THREE.Object3D, object: THREE.Object3D): ConnectedEdge {
     return new ConnectedEdge(subject, object, this._edgeMaterial);
-  }
-
-  transform(objects: THREE.Object3D[], targets: THREE.Object3D[], duration: number = 400) {
-    TWEEN.removeAll();
-    for (let i = 0; i < objects.length; i++) {
-      const object = objects[i];
-      const target = targets[i];
-      // }
-      new TWEEN.Tween(object.position)
-        .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
-        .easing(TWEEN.Easing.Exponential.InOut)
-        // .onUpdate(this._onUpdate)
-        .start();
-    }
-
-    new TWEEN.Tween(this)
-      .to({}, duration * 2)
-      .onUpdate(this._onUpdate)
-      .start();
-  }
-
-  private _onUpdate(engine: EngineService): void {
-    engine.edges?.forEach(edge => {
-      edge.updatePosition();
-    })
-    // engine.labels?.forEach(label => {
-    //   label.quaternion.copy(engine._camera.quaternion);
-    // })
-  }
-
-  public startFrameRendering(): void {
-    // We have to run this outside angular zones,
-    // because it could trigger heavy changeDetection cycles.
-    this._ngZone.runOutsideAngular(() => {
-      if (document.readyState !== 'loading') {
-        this.render();
-      } else {
-        window.addEventListener('DOMContentLoaded', () => {
-          this.render();
-        });
-      }
-
-      window.addEventListener('resize', () => {
-        // this.resize();
-      });
-    });
-  }
-
-  public selectNode(id:string) {
-
-  }
-
-  get cameraDeltaPos(): THREE.Vector3 {
-    return this._camera.position;
-  }
-
-  set cameraDeltaPos(val: THREE.Vector3) {
-    this._camera.position.set(val.x, val.y, val.z);
-    this._camera.lookAt(this.centerTargetBox.position);
-    this._cameraDeltaPos = val;
-  };
-
-  public focusOnNode(id: string) {
-    const node = this.scene.getObjectByName(id);
-    if (this._cameraIsAnimating) {
-      return;
-    }
-    if (node) {
-      this.centerTargetBox.lookAt(node.position);
-      let camDistance = this._camera.position.distanceTo(this.centerTargetBox.position);
-      if (camDistance < 1.5) camDistance = 1.5;
-      this.cameraTargetBox.position.set(0, 0, camDistance);
-      const targetPos: THREE.Vector3 = new THREE.Vector3();
-      this.cameraTargetBox.getWorldPosition(targetPos);
-      new TWEEN.Tween(this.cameraDeltaPos)
-        .to(targetPos , 400)
-        .onStart((event)=> {
-          this._onCameraTweenStart(event)
-        })
-        .onComplete((event)=> {
-          this._onCameraTweenComplete(event)
-        })
-        .onUpdate((event)=> {
-          this._onCameraTween (event);
-        })
-        .start();
-    };
-  }
-  private _onCameraTweenStart(delta:THREE.Vector3) {
-    this._controls.enabled = false;
-    this._cameraIsAnimating = true;
-  }
-
-  private _onCameraTweenComplete(delta:THREE.Vector3) {
-    this._controls.enabled = true;
-    this._cameraIsAnimating = false;
-  }
-  private _onCameraTween(delta:THREE.Vector3): void {
-    this.cameraDeltaPos = delta;
-  }
-
-  public unFocusNode(id: string) {
-    // const node = this.scene.getObjectByName(id);
-    // if (node) {
-    //   node.scale.set(1, 1, 1);
-    // };
-  }
-
-  public renderOnDemand(): void {
-    // this._controls.update();
-    this._renderer.render(this.scene, this._camera);
-  }
-
-  private render(): void {
-    this._frameId = requestAnimationFrame(() => {
-      this.render();
-    });
-    this._controls.update();
-    this.updateLabels();
-    TWEEN.update();
-    this._renderer.render(this.scene, this._camera);
-  }
-
-  private updateLabels() {
-    this.labels?.forEach(label => {
-      label.quaternion.copy(this._camera.quaternion);
-    })
-  }
-
-  public resize(): void {
-    const width = this._hostElement.nativeElement.offsetWidth;
-    const height = this._hostElement.nativeElement.offsetHeight;
-
-    this._renderer.setSize(width, height);
-    this._camera.aspect = this._canvas.clientWidth / this._canvas.clientHeight;
-    this._camera.updateProjectionMatrix();
-  }
-
-  ngOnDestroy(): void {
-    if (this._frameId != -1) {
-      cancelAnimationFrame(this._frameId);
-      this._frameId = -1;
-    }
   }
 }

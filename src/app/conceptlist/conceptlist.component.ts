@@ -22,6 +22,7 @@ declare global {
     data: any;
     treeControl: any;
     initialData: any;
+    controls:any
   }
 }
 
