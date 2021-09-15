@@ -31,7 +31,7 @@ export class ConceptcontentComponent implements OnInit {
           case "ConceptScheme":
             this.conceptData$ = undefined;
             this.conceptSchemeData$ = this.database.getNode(node) as ConceptSchemeNode;
-            console.log("toon conceptscheme",  this.conceptSchemeData$ )
+            // console.log("toon conceptscheme",  this.conceptSchemeData$ )
             break;
 
           default:

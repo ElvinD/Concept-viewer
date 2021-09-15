@@ -302,7 +302,7 @@ export class ConceptlistComponent implements OnInit {
     this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.OUT, node, node.item));
   }
 
-  nodeClicked(node: DynamicFlatNode, dispatchEvent:boolean = true) {
+  nodeClicked(node: DynamicFlatNode, dispatchEvent: boolean = true) {
     const concept = this.database.getNode(node.item);
     if (concept == undefined) return;
     // const conceptName = concept.uri.match(/\/([^\/]+)[\/]?$/)?.pop();
@@ -312,8 +312,17 @@ export class ConceptlistComponent implements OnInit {
       conceptURI = concept.uri.replace(domainURI, "");
     }
     // console.log("strippedURI:", conceptURI);
-    this.router.navigateByUrl('/' + conceptURI);
-    this.database.selectedNodeSubject.next(node.item);
+    this.router.onSameUrlNavigation = "ignore";
+    if (this.router.url !== '/' + conceptURI) {
+      this.router.navigateByUrl('/' + conceptURI).then((result) => {
+        console.log("navigated to: ", result)
+      }).catch((reason) => {
+        // console.log("failed to navigate by url", reason);
+      }).finally(() => {
+        // console.log("finally something from navigating");
+      });
+      this.database.selectedNodeSubject.next(node.item);
+    };
     if (dispatchEvent)
       this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.TREE_SELECT, node, node.item));
   }
@@ -332,18 +341,17 @@ export class ConceptlistComponent implements OnInit {
 
   async selectNodeExternal(id: string) {
     const dataNode = this.treeControl.dataNodes.find(element => {
-     return element.item == id;
+      return element.item == id;
     });
     if (dataNode) {
       // console.log("found datanode:", dataNode, "from id:", id);
       this.nodeClicked(dataNode, false);
       if (await this.database.hasChildren(dataNode.item)) {
         this.treeControl.expand(dataNode);
-         const divElement = this._document.getElementById(id);
-         if (divElement) {
-           divElement.scrollIntoView({behavior:"smooth"});
-         }
-        
+      }
+      const divElement = this._document.getElementById(id);
+      if (divElement) {
+        divElement.scrollIntoView({ behavior: "smooth" });
       }
     }
   }

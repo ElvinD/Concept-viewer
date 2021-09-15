@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { EngineService } from '../engine/engine.service';
-import { ConceptSchemeNode } from '../model/types';
+import { ConceptNode, ConceptSchemeNode } from '../model/types';
 import { InteractionEventTypes, InteractionService } from '../services/interaction.service';
 
 
@@ -45,7 +45,8 @@ export class ExplorerComponent implements OnInit {
       if (this.database.getNode(node) !== undefined) {
         switch (this.database.getNode(node)?.__typename) {
           case "Concept":
-            this.database.loadConcept(node).then((result) => {
+            this.database.loadConcept(node).then((result:ConceptNode) => {
+              console.log ("show child meshes");
             });
             break;
 
@@ -78,22 +79,38 @@ export class ExplorerComponent implements OnInit {
     this.renderView.animateTable();
   }
 
+  initChildNodes(data:ConceptNode) {
+    const childMeshes:THREE.Mesh[] = [];
+    const parentNode = this.renderView.scene.getObjectByName(data.uri);
+    if (parentNode) {
+      data.narrower?.map(childNode => {
+        const mesh = this.renderView.createMesh(childNode.uri, 0.02);
+        this.renderView.addChildMesh(mesh);
+        childMeshes.push(mesh);
+        const edge = this.renderView.createEdge(parentNode, mesh);
+        this.renderView.addEdge(edge);
+      });
+      this.renderView.meshMap.set(data.uri, childMeshes);
+    }
+  }
+
   init3dNodes(data: ConceptSchemeNode) {
-    // const buttonLabels = this._document.querySelectorAll('.nodelink');
-    // buttonLabels.forEach(item => {
-    //   console.log("found item:", item);
-    // })
+    console.log("init3d:", data);
     this.renderView.reset();
     const rootMesh = this.renderView.initRootMesh(data.uri);
+    const childMeshes:THREE.Mesh[] = [];
     data.hasTopConcept?.map(node => {
       const mesh = this.renderView.createMesh(node.uri, 0.02);
       this.renderView.addChildMesh(mesh);
+      childMeshes.push(mesh);
       const edge = this.renderView.createEdge(rootMesh, mesh);
       this.renderView.addEdge(edge);
     });
-    this.renderView.makeSphere();
-    this.renderView.makeGrid();
-    this.renderView.makeHelix();
+    this.renderView.meshMap.set(data.uri, childMeshes);
+    console.log("meshmap:", this.renderView.meshMap);
+    this.renderView.makeSphere(childMeshes);
+    this.renderView.makeGrid(childMeshes);
+    this.renderView.makeHelix(childMeshes);
     this.renderView.createLabels();
     // this.renderView.makeTable();
     this.animateSphere();

@@ -31,9 +31,6 @@ export class EngineService implements OnDestroy {
   private _orangeBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xf58220 });
   private _whiteBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
-  private _targets: { table: THREE.Object3D[]; sphere: THREE.Object3D[]; helix: THREE.Object3D[]; grid: THREE.Object3D[]; } = {
-    sphere: [], helix: [], grid: [], table: []
-  };
   // private boxDebugger = new THREE.BoxHelper(new THREE.Mesh(new THREE.SphereGeometry(0.1), this._nodeMaterial), 0xffff00);
   private _centerTargetBox = this.createTargetBox();
   private _cameraTargetBox = this.createTargetBox();
@@ -45,6 +42,7 @@ export class EngineService implements OnDestroy {
   public baseMeshes!: THREE.Mesh[];
   public expandedMeshes!: THREE.Mesh[];
   public allMeshes!: THREE.Mesh[];
+  public meshMap = new Map<string, THREE.Mesh[]>();
   public edges!: ConnectedEdge[];
   public labels!: THREE.Mesh[];
 
@@ -94,6 +92,7 @@ export class EngineService implements OnDestroy {
   }
 
   reset() {
+    this.meshMap = new Map<string, THREE.Mesh[]>();
     this._selectedNodes = [];
     if (this.rootMesh) {
       this.scene.remove(this.rootMesh);
@@ -116,7 +115,6 @@ export class EngineService implements OnDestroy {
     });
     this.baseMeshes = [];
     this.edges = [];
-    this._targets = { sphere: [], helix: [], grid: [], table: [] };
     this.labels = [];
   }
 
@@ -127,22 +125,25 @@ export class EngineService implements OnDestroy {
     return this.rootMesh;
   }
 
-  transform(objects: THREE.Object3D[], targets: THREE.Object3D[], duration: number = 400) {
+  transform(objects: THREE.Object3D[], shape:string = "sphere", duration: number = 400) {
     TWEEN.removeAll();
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
-      const target = targets[i];
-      object.userData["pos"] = target.position;
-      new TWEEN.Tween(object.position)
-        .to({ x: target.position.x, y: target.position.y, z: target.position.z }, Math.random() * duration + duration)
-        .easing(TWEEN.Easing.Exponential.InOut)
+      const targetVector: THREE.Vector3 = object.userData[shape];
+      object.userData["pos"] = targetVector;
+      if (targetVector) {
+        new TWEEN.Tween(object.position)
+          .to({ x: targetVector.x, y: targetVector.y, z: targetVector.z }, Math.random() * duration + duration)
+          .easing(TWEEN.Easing.Exponential.InOut)
+          .start();
+      }
+  
+      new TWEEN.Tween(this)
+        .to({}, duration * 2)
+        .onUpdate(this._onUpdate)
         .start();
-    }
 
-    new TWEEN.Tween(this)
-      .to({}, duration * 2)
-      .onUpdate(this._onUpdate)
-      .start();
+      }
   }
 
   private _storePosition(param:any) {
@@ -198,7 +199,6 @@ export class EngineService implements OnDestroy {
       // console.log ("got some intersects", intersects);
       for (let i = 0; i < intersects.length; i++) {
         const object = intersects[i];
-        
         if (object.object instanceof THREE.Mesh && object.object.name !== this.rootMesh.name && object.object.name !="debugger") {
           this.selectNode(object.object.name);
         }
@@ -238,7 +238,9 @@ export class EngineService implements OnDestroy {
     }
   }
 
-
+  public expandSelection(id:string) {
+    const node = this.scene.getObjectByName(id);
+  }
 
   public selectNode(id: string) {
     let newPos = new THREE.Vector3();
@@ -257,7 +259,7 @@ export class EngineService implements OnDestroy {
       }
     } else if (this._selectedNodes.indexOf(id) != -1) {
       //already selected
-      console.log("already selected, collapsing", id);
+      // console.log("already selected, collapsing", id);
       this.collapseSelections();
       return;
     }
@@ -266,7 +268,7 @@ export class EngineService implements OnDestroy {
       // console.log("selecting node: ", id);
       this._selectedNodes.push(id);
     } else {
-      console.log("already selected, doing nothing:", id);
+      // console.log("already selected, doing nothing:", id);
       return;
     }
     newPos = new THREE.Vector3();
@@ -444,61 +446,63 @@ export class EngineService implements OnDestroy {
   }
 
   animateHelix(): void {
-    this.transform(this.baseMeshes, this._targets.helix);
+    this.transform(this.baseMeshes, "helix");
   }
 
   animateSphere(): void {
-    this.transform(this.baseMeshes, this._targets.sphere);
+    this.transform(this.baseMeshes, "sphere");
   }
 
   animateGrid(): void {
-    this.transform(this.baseMeshes, this._targets.grid);
+    this.transform(this.baseMeshes, "grid");
   }
 
   animateTable(): void {
-    this.transform(this.baseMeshes, this._targets.table);
+    this.transform(this.baseMeshes, "table");
   }
 
-  public makeHelix(): void {
-    const vector = new THREE.Vector3();
-    const distance = this.baseMeshes.length;
+  public makeHelix(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
+    const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
+    const distance = objects.length;
     for (let i = 0, l = distance; i < l; i++) {
       const theta = i * 0.175 + Math.PI;
       const y = - (i * .05) + distance * 0.025;
-      // const object = this.childMeshes[i];
-      const object = new THREE.Object3D();
-      object.position.setFromCylindricalCoords(1, theta, y);
-      vector.x = object.position.x * .2;
-      vector.y = object.position.y;
-      vector.z = object.position.z * .2;
-      object.lookAt(vector);
-      this._targets.helix.push(object);
+      const mesh = objects[i];
+      const targetVector = new THREE.Vector3();
+      targetVector.setFromCylindricalCoords(1, theta, y);
+      centerVector.x = targetVector.x * .2;
+      centerVector.y = targetVector.y;
+      centerVector.z = targetVector.z * .2;
+      // object.lookAt(vector);
+      mesh.userData["helix"] = targetVector;
     }
   }
 
-  public makeGrid(): void {
-    const distance = this.baseMeshes.length;
+  public makeGrid(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
+    const distance = objects.length;
+    const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
     for (let i = 0, l = distance; i < l; i++) {
-      const object = new THREE.Object3D();
-      object.position.x = ((i % 5) * .5) - 1;
-      object.position.y = (- (Math.floor(i / 5) % 5) * .5) + 1;
-      object.position.z = (Math.floor(i / 25)) * 0.5;
-      this._targets.grid.push(object);
+      const mesh = objects[i];
+      const targetVector = new THREE.Vector3();
+      targetVector.x = ((i % 5) * .5) - 1;
+      targetVector.y = (- (Math.floor(i / 5) % 5) * .5) + 1;
+      targetVector.z =  (Math.floor(i / (distance * 0.25))) * 0.25;
+      // console.log("z: " , targetVector.z , "x: ", targetVector.x);
+      mesh.userData["grid"] = targetVector;
     }
   }
 
-  public makeSphere(): void {
-    const vector = new THREE.Vector3();
-    const distance = this.baseMeshes.length;
+  public makeSphere(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
+    const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
+    const distance = objects.length;
     for (let i = 0, l = distance; i < l; i++) {
       const phi = Math.acos(- 1 + (2 * i) / l);
       const theta = Math.sqrt(l * Math.PI) * phi;
-      const object = new THREE.Object3D();
-      // const object = this.childMeshes[i];
-      object.position.setFromSphericalCoords(0.8, phi, theta);
-      vector.copy(object.position).multiplyScalar(1);
-      object.lookAt(vector);
-      this._targets.sphere.push(object);
+      const mesh = objects[i];
+      const targetVector = new THREE.Vector3();
+      targetVector.setFromSphericalCoords(0.8, phi, theta);
+      centerVector.copy(targetVector).multiplyScalar(1);
+      mesh.userData["sphere"] = targetVector; 
     }
   }
 
