@@ -5,6 +5,7 @@ import TWEEN from '@tweenjs/tween.js';
 import { ConnectedEdge } from './models';
 import { Font } from 'three';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
+import { CustomInteractionEvent, InteractionEventTypes, InteractionService } from '../services/interaction.service';
 
 @Injectable({
   providedIn: 'root'
@@ -47,7 +48,7 @@ export class EngineService implements OnDestroy {
   public edges!: ConnectedEdge[];
   public labels!: THREE.Mesh[];
 
-  constructor(private _ngZone: NgZone, private database: DynamicDatabase,) { }
+  constructor(private _ngZone: NgZone, private database: DynamicDatabase, private interactionService: InteractionService) { }
 
   public createScene(canvas: ElementRef<HTMLCanvasElement>, hostElement: ElementRef<HTMLDivElement>): void {
     this._hostElement = hostElement;
@@ -275,6 +276,11 @@ export class EngineService implements OnDestroy {
         new TWEEN.Tween(node.position)
           .to(newPos, 400)
           .easing(TWEEN.Easing.Sinusoidal.InOut)
+          .onComplete(() => {
+            this._ngZone.run(()=> {
+              this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, node.name));
+            });
+          })
           .start();
 
         new TWEEN.Tween(this._centerTargetBox.position)

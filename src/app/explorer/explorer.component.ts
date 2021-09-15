@@ -1,8 +1,7 @@
-import { Component, ElementRef, OnInit, AfterViewInit, ViewChild, Inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { EngineService } from '../engine/engine.service';
 import { ConceptSchemeNode } from '../model/types';
-import { DOCUMENT } from '@angular/common'
 import { InteractionEventTypes, InteractionService } from '../services/interaction.service';
 
 
@@ -19,8 +18,7 @@ export class ExplorerComponent implements OnInit {
   constructor(private renderView: EngineService,
     private hostElement: ElementRef<HTMLDivElement>,
     private database: DynamicDatabase,
-    private interactionService: InteractionService,
-    @Inject(DOCUMENT) private _document: Document) {
+    private interactionService: InteractionService) {
   }
 
   ngOnInit(): void {
@@ -35,13 +33,12 @@ export class ExplorerComponent implements OnInit {
           this.renderView.unFocusNode(event.value);
           break;
 
-        case InteractionEventTypes.SELECT:
+        case InteractionEventTypes.TREE_SELECT:
           this.renderView.selectNode(event.value);
           break;
 
         default:
           break;
-
       }
     });
     this.database.selectedNodeSubject.subscribe((node) => {

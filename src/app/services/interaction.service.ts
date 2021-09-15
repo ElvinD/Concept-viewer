@@ -20,7 +20,8 @@ export class InteractionService {
 export enum InteractionEventTypes {
   OVER,
   OUT,
-  SELECT,
+  TREE_SELECT,
+  EXPLORER_SELECT,
   NONE
 }
 
