@@ -1,7 +1,6 @@
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { DOCUMENT } from '@angular/common';
-import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 import { Component, Inject, Injectable, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Apollo } from 'apollo-angular';
@@ -375,6 +374,7 @@ export class ConceptlistComponent implements OnInit {
           break;
       }
     });
+    this.router.navigate([], { replaceUrl: true});
   }
 
 }

@@ -34,7 +34,10 @@ export class ExplorerComponent implements OnInit {
           break;
 
         case InteractionEventTypes.TREE_SELECT:
-          this.renderView.selectNode(event.value);
+          const node = this.database.getNode(event.value);
+          if (node && node.__typename == "Concept") {
+            this.renderView.selectNode(event.value);
+          };
           break;
 
         default:
@@ -45,13 +48,20 @@ export class ExplorerComponent implements OnInit {
       if (this.database.getNode(node) !== undefined) {
         switch (this.database.getNode(node)?.__typename) {
           case "Concept":
-            this.database.loadConcept(node).then((result:ConceptNode) => {
-              console.log ("show child meshes");
+            this.database.loadConcept(node).then((result: ConceptNode) => {
+              console.log("show child meshes");
             });
             break;
 
           case "ConceptScheme":
             const conceptSchemeData = this.database.getNode(node) as ConceptSchemeNode;
+            console.log("mesh: ", this.renderView.rootMesh?.name, " scheme: ", conceptSchemeData.uri);
+            if (this.renderView.rootMesh) {
+              if (conceptSchemeData.uri == this.renderView.rootMesh.name) {
+                console.log("will NOT init 3d from conceptscheme");
+                return;
+              }
+            }
             this.init3dNodes(conceptSchemeData);
             break;
 
@@ -79,8 +89,8 @@ export class ExplorerComponent implements OnInit {
     this.renderView.animateTable();
   }
 
-  initChildNodes(data:ConceptNode) {
-    const childMeshes:THREE.Mesh[] = [];
+  initChildNodes(data: ConceptNode) {
+    const childMeshes: THREE.Mesh[] = [];
     const parentNode = this.renderView.scene.getObjectByName(data.uri);
     if (parentNode) {
       data.narrower?.map(childNode => {
@@ -98,7 +108,7 @@ export class ExplorerComponent implements OnInit {
     console.log("init3d:", data);
     this.renderView.reset();
     const rootMesh = this.renderView.initRootMesh(data.uri);
-    const childMeshes:THREE.Mesh[] = [];
+    const childMeshes: THREE.Mesh[] = [];
     data.hasTopConcept?.map(node => {
       const mesh = this.renderView.createMesh(node.uri, 0.02);
       this.renderView.addChildMesh(mesh);
@@ -116,7 +126,7 @@ export class ExplorerComponent implements OnInit {
     this.animateSphere();
   }
 
-  canvasClicked(event:MouseEvent) {
+  canvasClicked(event: MouseEvent) {
     this.renderView.clicked(event);
   }
 }

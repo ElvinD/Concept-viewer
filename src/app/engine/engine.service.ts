@@ -92,8 +92,6 @@ export class EngineService implements OnDestroy {
   }
 
   reset() {
-    this.meshMap = new Map<string, THREE.Mesh[]>();
-    this._selectedNodes = [];
     if (this.rootMesh) {
       this.scene.remove(this.rootMesh);
       this.rootMesh.geometry.dispose();
@@ -116,6 +114,8 @@ export class EngineService implements OnDestroy {
     this.baseMeshes = [];
     this.edges = [];
     this.labels = [];
+    this.meshMap = new Map<string, THREE.Mesh[]>();
+    this._selectedNodes = [];
   }
 
 
