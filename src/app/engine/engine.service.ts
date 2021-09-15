@@ -77,7 +77,7 @@ export class EngineService implements OnDestroy {
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.target = this._centerTargetBox.position;
-    // window["controls"] = this._controls;
+    window["controls"] = this._controls;
     this._controls.update();
     this._controls.addEventListener('change', (event) => {
       this.renderOnDemand();
@@ -194,10 +194,11 @@ export class EngineService implements OnDestroy {
     raycaster.setFromCamera(mouse, this._camera);
     const intersects = raycaster.intersectObjects(this.scene.children);
     if (intersects.length) {
-      console.log ("got some intersects", intersects);
+      // console.log ("got some intersects", intersects);
       for (let i = 0; i < intersects.length; i++) {
         const object = intersects[i];
-        if (object.object instanceof THREE.Mesh) {
+        
+        if (object.object instanceof THREE.Mesh && object.object.name !== this.rootMesh.name && object.object.name !="debugger") {
           this.selectNode(object.object.name);
         }
       }
@@ -223,7 +224,11 @@ export class EngineService implements OnDestroy {
           const newCameraPos = new THREE.Vector3();
           new TWEEN.Tween(this._centerTargetBox.position)
             .to(newCameraPos, 200)
+            .onUpdate(() => {
+              this._onUpdate(this);
+            })
             .onComplete(() => {
+              
               // console.log("done returning to normal", this);
             })
             .start();
@@ -243,42 +248,57 @@ export class EngineService implements OnDestroy {
         const previousSelectedNode = this.scene.getObjectByName(previousSelectedNodeId);
         if (previousSelectedNode) {
           newPos = previousSelectedNode.userData["pos"];
-          // previousSelectedNode.userData["pos"] = null;
-          // delete previousSelectedNode.userData["pos"];
           new TWEEN.Tween(previousSelectedNode.position)
           .to(newPos, 200)
+          .easing(TWEEN.Easing.Sinusoidal.Out)
           .start();
         }
       }
     } else if (this._selectedNodes.indexOf(id) != -1) {
       //already selected
-      console.log("already selected", id);
+      console.log("already selected, collapsing", id);
       this.collapseSelections();
       return;
     }
     const node = this.scene.getObjectByName(id);
     if (this._selectedNodes.indexOf(id) == -1) {
+      // console.log("selecting node: ", id);
       this._selectedNodes.push(id);
     } else {
-      console.log("already selected:", id);
+      console.log("already selected, doing nothing:", id);
       return;
     }
     newPos = new THREE.Vector3();
     if (node) {
-      // if (node.userData["pos"] == undefined) {
-        // node.userData["pos"] = new THREE.Vector3(node.position.x, node.position.y, node.position.z);
-        const ray: THREE.Ray = new THREE.Ray(this._centerTargetBox.position, node.position);
-        ray.at(1.5, newPos);
+        const ray: THREE.Ray = new THREE.Ray(newPos, node.position);
+        ray.at(0.8, newPos);
         new TWEEN.Tween(node.position)
-          .to(newPos, 200)
+          .to(newPos, 400)
+          .easing(TWEEN.Easing.Sinusoidal.InOut)
           .start();
 
         new TWEEN.Tween(this._centerTargetBox.position)
-          .to(newPos, 200)
-          .onComplete(() => { })
+          .to(newPos, 400)
+          .easing(TWEEN.Easing.Sinusoidal.InOut)
+          .onComplete(() => {})
           .start();
-      // }
+
+        this.panCamera(newPos);
     }
+  }
+
+  public panCamera(target:THREE.Vector3) {
+    // console.log ("panning camera: ", target);
+    const newPos = new THREE.Vector3();
+    const ray: THREE.Ray = new THREE.Ray(newPos, target);
+    ray.at(0.8, newPos);
+    new TWEEN.Tween(this._camera.position)
+    .to(newPos, 400)
+    .onUpdate(() => {
+      this._onUpdate(this);
+    })
+    .easing(TWEEN.Easing.Sinusoidal.InOut)
+    .start();
   }
 
 
@@ -289,8 +309,8 @@ export class EngineService implements OnDestroy {
     // };
   }
 
-  public focusOnNode(id: string) {
-    if (this._selectedNodes.length > 0) {
+  public focusOnNode(id: string, override:boolean = false) {
+    if (this._selectedNodes.length > 0 && !override) {
       return;
     }
     const node = this.scene.getObjectByName(id);
@@ -478,15 +498,20 @@ export class EngineService implements OnDestroy {
 
   private createTargetBox(): THREE.Object3D {
     const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe:true });
     const cube = new THREE.Mesh(geometry, material);
+    cube.name = "debugger";
     return cube;
   }
 
   createMesh(name: string, radius: number = 0.02): THREE.Mesh {
     // const geometry = new THREE.CircleGeometry(radius, 24);
-    const geometry = new THREE.SphereGeometry(radius, 24, 24);
+    const geometry = new THREE.SphereGeometry(radius, 12, 12);
+    // const edges = new THREE.EdgesGeometry( geometry );
+    // const line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth:4 } ) );
     const mesh = new THREE.Mesh(geometry, this._orangeBasicMaterial);
+    // line.renderOrder = 1;
+    // mesh.add(line);
     mesh.name = name;
     return mesh;
     // return this.createDiscObject(name, this._whiteBasicMaterial, this._orangeBasicMaterial, radius);
