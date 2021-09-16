@@ -276,6 +276,7 @@ export class EngineService implements OnDestroy {
           .easing(TWEEN.Easing.Sinusoidal.InOut)
           .onComplete(() => {
             this._ngZone.run(()=> {
+              // console.log("end position for ", id, " is ", newPos);
               this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, node.name));
             });
           })
@@ -457,49 +458,50 @@ export class EngineService implements OnDestroy {
     this.transform(objects, "table");
   }
 
-  public makeHelix(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
-    const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
+  public makeHelix(objects: THREE.Mesh[]): void {
     const distance = objects.length;
     for (let i = 0, l = distance; i < l; i++) {
       const theta = i * 0.175 + Math.PI;
       const y = - (i * .05) + distance * 0.025;
       const mesh = objects[i];
+      const centerVector = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
       const targetVector = new THREE.Vector3();
       targetVector.setFromCylindricalCoords(1, theta, y);
-      centerVector.x = targetVector.x * .2;
-      centerVector.y = targetVector.y;
-      centerVector.z = targetVector.z * .2;
+      centerVector.x = centerVector.x + targetVector.x * .2;
+      centerVector.y = centerVector.y + targetVector.y;
+      centerVector.z = centerVector.z + targetVector.z * .2;
       // object.lookAt(vector);
       mesh.userData["helix"] = targetVector;
     }
   }
 
-  public makeGrid(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
+  public makeGrid(objects: THREE.Mesh[]): void {
     const distance = objects.length;
-    const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
     for (let i = 0, l = distance; i < l; i++) {
       const mesh = objects[i];
+      const centerVector = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
       const targetVector = new THREE.Vector3();
-      targetVector.x = ((i % 5) * .5) - 1;
-      targetVector.y = (- (Math.floor(i / 5) % 5) * .5) + 1;
-      targetVector.z =  (Math.floor(i / (distance * 0.25))) * 0.25;
+      targetVector.x = centerVector.x + ((i % 5) * .5) - 1;
+      targetVector.y = centerVector.y + (- (Math.floor(i / 5) % 5) * .5) + 1;
+      targetVector.z = centerVector.z + (Math.floor(i / (distance * 0.25))) * 0.25;
       // console.log("z: " , targetVector.z , "x: ", targetVector.x);
       mesh.userData["grid"] = targetVector;
     }
   }
 
-  public makeSphere(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
-    const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
-    console.log("center vector before: ", centerVector);
+  public makeSphere(objects: THREE.Mesh[], multiply:number = 1): void {
     const distance = objects.length;
     for (let i = 0, l = distance; i < l; i++) {
       const phi = Math.acos(- 1 + (2 * i) / l);
       const theta = Math.sqrt(l * Math.PI) * phi;
       const mesh = objects[i];
+      const centerVector = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
+      // console.log("centervector:", centerVector);
       const targetVector = new THREE.Vector3();
       targetVector.setFromSphericalCoords(0.8, phi, theta);
-      // centerVector.copy(targetVector).multiplyScalar(1);
-      targetVector.addVectors(centerVector, targetVector);
+      targetVector.multiplyScalar(multiply);
+      targetVector.add(centerVector);
+      // console.log("targetvector: " , targetVector);
       mesh.userData["sphere"] = targetVector; 
     }
   }

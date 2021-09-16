@@ -42,11 +42,11 @@ export class ExplorerComponent implements OnInit {
             const childNodes = await this.database.getChildren(node.uri);
             if (childNodes && childNodes.length) {
               this.initChildNodes(node, childNodes);
-              // this.animateSphere(this.renderView.meshMap.get(node.uri));
-              const childMeshes = this.renderView.meshMap.get(node.uri);
-              if (childMeshes) {
-                 this.debugNodes(childMeshes);
-              };
+              this.animateSphere(this.renderView.meshMap.get(node.uri));
+              // const childMeshes = this.renderView.meshMap.get(node.uri);
+              // if (childMeshes) {
+              //    this.debugNodes(childMeshes);
+              // };
             }
           };
           break;
@@ -97,7 +97,7 @@ export class ExplorerComponent implements OnInit {
       if (parentMesh) {
         let basePosition:THREE.Vector3 = new THREE.Vector3();
         basePosition.copy(parentMesh.position);
-        console.log("base position:", basePosition);
+        
         childNodes.map(uri => {
           const mesh = this.renderView.createMesh(uri, 0.02);
           mesh.position.set(basePosition.x, basePosition.y, basePosition.z);
@@ -107,9 +107,9 @@ export class ExplorerComponent implements OnInit {
           this.renderView.addEdge(edge);
         });
         this.renderView.meshMap.set(parentNode.uri, childMeshes);
-        this.renderView.makeGrid(childMeshes, basePosition);
-        this.renderView.makeSphere(childMeshes, basePosition);
-        this.renderView.makeHelix(childMeshes, basePosition);
+        this.renderView.makeGrid(childMeshes);
+        this.renderView.makeSphere(childMeshes, 0.5);
+        this.renderView.makeHelix(childMeshes);
         this.renderView.createLabels(childMeshes);
         // console.log("created: ", this.renderView.meshMap.get(parentNode.uri));
       }
@@ -123,7 +123,7 @@ export class ExplorerComponent implements OnInit {
     children.map(child => {
       const targetVector:THREE.Vector3 = child.userData["sphere"];
       if (targetVector) {
-        child.position.set (targetVector.x, targetVector.y, targetVector.y);
+        child.position.set (targetVector.x, targetVector.y, targetVector.z);
       };
     })
   }
