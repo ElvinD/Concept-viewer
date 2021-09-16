@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import * as THREE from 'three';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { EngineService } from '../engine/engine.service';
 import { ConceptNode, ConceptSchemeNode } from '../model/types';
@@ -23,7 +24,9 @@ export class ExplorerComponent implements OnInit {
 
   ngOnInit(): void {
     this.renderView.createScene(this.rendererCanvas, this.hostElement);
-    this.interactionService.eventSubmitter.subscribe(event => {
+    this.interactionService.eventSubmitter.subscribe(async event => {
+      let node: ConceptNode;
+      // console.log("interaction event: ", event);
       switch (event.type) {
         case InteractionEventTypes.OVER:
           this.renderView.focusOnNode(event.value);
@@ -33,8 +36,22 @@ export class ExplorerComponent implements OnInit {
           this.renderView.unFocusNode(event.value);
           break;
 
+        case InteractionEventTypes.EXPLORER_SELECT:
+          node = this.database.getNode(event.value) as ConceptNode;
+          if (node && node.__typename == "Concept") {
+            const childNodes = await this.database.getChildren(node.uri);
+            if (childNodes && childNodes.length) {
+              this.initChildNodes(node, childNodes);
+              // this.animateSphere(this.renderView.meshMap.get(node.uri));
+              const childMeshes = this.renderView.meshMap.get(node.uri);
+              if (childMeshes) {
+                 this.debugNodes(childMeshes);
+              };
+            }
+          };
+          break;
         case InteractionEventTypes.TREE_SELECT:
-          const node = this.database.getNode(event.value);
+          node = this.database.getNode(event.value) as ConceptNode;
           if (node && node.__typename == "Concept") {
             this.renderView.selectNode(event.value);
           };
@@ -49,16 +66,15 @@ export class ExplorerComponent implements OnInit {
         switch (this.database.getNode(node)?.__typename) {
           case "Concept":
             this.database.loadConcept(node).then((result: ConceptNode) => {
-              console.log("show child meshes");
+              // console.log("show child meshes");
             });
             break;
 
           case "ConceptScheme":
             const conceptSchemeData = this.database.getNode(node) as ConceptSchemeNode;
-            console.log("mesh: ", this.renderView.rootMesh?.name, " scheme: ", conceptSchemeData.uri);
+            // console.log("mesh: ", this.renderView.rootMesh?.name, " scheme: ", conceptSchemeData.uri);
             if (this.renderView.rootMesh) {
               if (conceptSchemeData.uri == this.renderView.rootMesh.name) {
-                console.log("will NOT init 3d from conceptscheme");
                 return;
               }
             }
@@ -71,41 +87,48 @@ export class ExplorerComponent implements OnInit {
       }
     });
     this.renderView.startFrameRendering();
-    // this.renderView.renderOnDemand();
-  }
-  animateSphere() {
-    this.renderView.animateSphere();
   }
 
-  animateGrid() {
-    this.renderView.animateGrid();
-  }
-
-  animateHelix() {
-    this.renderView.animateHelix();
-  }
-
-  animateTable() {
-    this.renderView.animateTable();
-  }
-
-  initChildNodes(data: ConceptNode) {
-    const childMeshes: THREE.Mesh[] = [];
-    const parentNode = this.renderView.scene.getObjectByName(data.uri);
-    if (parentNode) {
-      data.narrower?.map(childNode => {
-        const mesh = this.renderView.createMesh(childNode.uri, 0.02);
-        this.renderView.addChildMesh(mesh);
-        childMeshes.push(mesh);
-        const edge = this.renderView.createEdge(parentNode, mesh);
-        this.renderView.addEdge(edge);
-      });
-      this.renderView.meshMap.set(data.uri, childMeshes);
+  initChildNodes(parentNode: ConceptNode, childNodes: string[]) {
+    // console.log("init child nodes: ", parentNode, "children: ", childNodes);
+    if (!this.renderView.meshMap.get(parentNode.uri)) {
+      const childMeshes: THREE.Mesh[] = [];
+      const parentMesh = this.renderView.scene.getObjectByName(parentNode.uri);
+      if (parentMesh) {
+        let basePosition:THREE.Vector3 = new THREE.Vector3();
+        basePosition.copy(parentMesh.position);
+        console.log("base position:", basePosition);
+        childNodes.map(uri => {
+          const mesh = this.renderView.createMesh(uri, 0.02);
+          mesh.position.set(basePosition.x, basePosition.y, basePosition.z);
+          this.renderView.addChildMesh(mesh);
+          childMeshes.push(mesh);
+          const edge = this.renderView.createEdge(parentMesh, mesh);
+          this.renderView.addEdge(edge);
+        });
+        this.renderView.meshMap.set(parentNode.uri, childMeshes);
+        this.renderView.makeGrid(childMeshes, basePosition);
+        this.renderView.makeSphere(childMeshes, basePosition);
+        this.renderView.makeHelix(childMeshes, basePosition);
+        this.renderView.createLabels(childMeshes);
+        // console.log("created: ", this.renderView.meshMap.get(parentNode.uri));
+      }
+    } else {
+      // console.log("already populated: ", this.renderView.meshMap.get(parentNode.uri));
     }
   }
 
+  debugNodes(children: THREE.Mesh[]) {
+    console.log("debugnodes ", children);
+    children.map(child => {
+      const targetVector:THREE.Vector3 = child.userData["sphere"];
+      if (targetVector) {
+        child.position.set (targetVector.x, targetVector.y, targetVector.y);
+      };
+    })
+  }
+
   init3dNodes(data: ConceptSchemeNode) {
-    console.log("init3d:", data);
     this.renderView.reset();
     const rootMesh = this.renderView.initRootMesh(data.uri);
     const childMeshes: THREE.Mesh[] = [];
@@ -117,16 +140,36 @@ export class ExplorerComponent implements OnInit {
       this.renderView.addEdge(edge);
     });
     this.renderView.meshMap.set(data.uri, childMeshes);
-    console.log("meshmap:", this.renderView.meshMap);
     this.renderView.makeSphere(childMeshes);
     this.renderView.makeGrid(childMeshes);
     this.renderView.makeHelix(childMeshes);
-    this.renderView.createLabels();
+    this.renderView.createLabels(childMeshes);
     // this.renderView.makeTable();
-    this.animateSphere();
+    this.animateSphere(childMeshes);
   }
 
   canvasClicked(event: MouseEvent) {
     this.renderView.clicked(event);
+  }
+
+  animateSphere(objects?: THREE.Object3D[]) {
+    objects = objects ? objects : this.renderView.baseMeshes;
+    // console.log("animating: ", objects);
+    this.renderView.animateSphere(objects);
+  }
+
+  animateGrid(objects?: THREE.Object3D[]) {
+    objects = objects ? objects : this.renderView.baseMeshes;
+    this.renderView.animateGrid(objects);
+  }
+
+  animateHelix(objects?: THREE.Object3D[]) {
+    objects = objects ? objects : this.renderView.baseMeshes;
+    this.renderView.animateHelix(objects);
+  }
+
+  animateTable(objects?: THREE.Object3D[]) {
+    objects = objects ? objects : this.renderView.baseMeshes;
+    this.renderView.animateTable(objects);
   }
 }

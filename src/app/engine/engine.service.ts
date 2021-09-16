@@ -142,7 +142,6 @@ export class EngineService implements OnDestroy {
         .to({}, duration * 2)
         .onUpdate(this._onUpdate)
         .start();
-
       }
   }
 
@@ -216,8 +215,6 @@ export class EngineService implements OnDestroy {
         const node = this.scene.getObjectByName(nodeId);
         if (node) {
           newPos = node.userData["pos"];
-          // node.userData["pos"] = null;
-          // delete node.userData["pos"];
           console.log("reset to:", newPos)
           new TWEEN.Tween(node.position)
             .to(newPos, 200)
@@ -229,7 +226,6 @@ export class EngineService implements OnDestroy {
               this._onUpdate(this);
             })
             .onComplete(() => {
-              
               // console.log("done returning to normal", this);
             })
             .start();
@@ -399,20 +395,20 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  private loadFont() {
+  private loadFont(objects: THREE.Object3D[]) {
     this._fontLoader = new THREE.FontLoader();
     this._fontLoader.load('assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
       this._labelFont = font;
-      this.createLabels();
+      this.createLabels(objects);
     });
   }
 
-  createLabels() {
+  createLabels(objects: THREE.Object3D[]) {
     if (!this._labelFont) {
-      this.loadFont();
+      this.loadFont(objects);
       return;
     }
-    this.baseMeshes?.map(mesh => {
+    objects.map(mesh => {
       const nodeData = this.database.getNode(mesh.name);
       if (nodeData) {
         const textShape = this._labelFont.generateShapes(nodeData.label, 0.04);
@@ -445,20 +441,20 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  animateHelix(): void {
-    this.transform(this.baseMeshes, "helix");
+  animateHelix(objects: THREE.Object3D[]): void {
+    this.transform(objects, "helix");
   }
 
-  animateSphere(): void {
-    this.transform(this.baseMeshes, "sphere");
+  animateSphere(objects: THREE.Object3D[]): void {
+    this.transform(objects, "sphere");
   }
 
-  animateGrid(): void {
-    this.transform(this.baseMeshes, "grid");
+  animateGrid(objects: THREE.Object3D[]): void {
+    this.transform(objects, "grid");
   }
 
-  animateTable(): void {
-    this.transform(this.baseMeshes, "table");
+  animateTable(objects: THREE.Object3D[]): void {
+    this.transform(objects, "table");
   }
 
   public makeHelix(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
@@ -494,6 +490,7 @@ export class EngineService implements OnDestroy {
 
   public makeSphere(objects: THREE.Mesh[], centerPosition:THREE.Vector3 = new THREE.Vector3()): void {
     const centerVector = centerPosition ? centerPosition : new THREE.Vector3();
+    console.log("center vector before: ", centerVector);
     const distance = objects.length;
     for (let i = 0, l = distance; i < l; i++) {
       const phi = Math.acos(- 1 + (2 * i) / l);
@@ -501,7 +498,8 @@ export class EngineService implements OnDestroy {
       const mesh = objects[i];
       const targetVector = new THREE.Vector3();
       targetVector.setFromSphericalCoords(0.8, phi, theta);
-      centerVector.copy(targetVector).multiplyScalar(1);
+      // centerVector.copy(targetVector).multiplyScalar(1);
+      targetVector.addVectors(centerVector, targetVector);
       mesh.userData["sphere"] = targetVector; 
     }
   }
