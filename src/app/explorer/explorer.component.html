@@ -5,5 +5,5 @@
     <button (click)="animateHelix()">Helix</button>&nbsp;
     <!-- <button (click)="animateTable()">Tafel</button> -->
   </div>
-  <canvas #rendererCanvas id="renderCanvas"></canvas>
+  <canvas (click)="canvasClicked($event)" #rendererCanvas id="renderCanvas"></canvas>
 </div>

@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, OnInit, Inject, Input } from '@angular/core';
 import { DynamicDatabase, DynamicFlatNode } from '../conceptlist/conceptlist.component';
 import { ConceptSchemeNode, RDFNode, ConceptNode } from '../model/types';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
@@ -11,8 +11,8 @@ import { ConceptcontentpopupComponent, ConceptContentPopupData } from '../concep
 })
 export class ConceptcontentComponent implements OnInit {
 
-  conceptData$?: ConceptNode = { label: "Laden", type: [], uri: "" };
-  conceptSchemeData$?: ConceptSchemeNode;
+  @Input() conceptData$?: ConceptNode = { label: "Laden", type: [], uri: "" };
+  @Input() conceptSchemeData$?: ConceptSchemeNode;
 
   constructor(public database: DynamicDatabase,
     protected dialog: MatDialog) { };
@@ -31,7 +31,7 @@ export class ConceptcontentComponent implements OnInit {
           case "ConceptScheme":
             this.conceptData$ = undefined;
             this.conceptSchemeData$ = this.database.getNode(node) as ConceptSchemeNode;
-            console.log("toon conceptscheme",  this.conceptSchemeData$ )
+            // console.log("toon conceptscheme",  this.conceptSchemeData$ )
             break;
 
           default:

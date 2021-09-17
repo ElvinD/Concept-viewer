@@ -1,6 +1,7 @@
 import { CollectionViewer, DataSource, SelectionChange } from '@angular/cdk/collections';
 import { FlatTreeControl } from '@angular/cdk/tree';
-import { Component, Injectable, OnInit } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, Inject, Injectable, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Apollo } from 'apollo-angular';
 import { BehaviorSubject, merge, Observable } from 'rxjs';
@@ -22,6 +23,7 @@ declare global {
     data: any;
     treeControl: any;
     initialData: any;
+    controls: any
   }
 }
 
@@ -279,25 +281,27 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 })
 export class ConceptlistComponent implements OnInit {
 
-  constructor(public database: DynamicDatabase, 
-              private router:Router, 
-              private interactionService: InteractionService) {
+  constructor(public database: DynamicDatabase,
+    private router: Router,
+    private interactionService: InteractionService,
+    @Inject(DOCUMENT) private _document: Document) {
     this.treeControl = new FlatTreeControl<DynamicFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new DynamicDataSource(this.treeControl, database);
+
   }
 
   treeControl: FlatTreeControl<DynamicFlatNode>;
   dataSource: DynamicDataSource;
 
-  enterNodeHover(node:DynamicFlatNode) {
+  enterNodeHover(node: DynamicFlatNode) {
     this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.OVER, node, node.item));
   }
-  
-  exitNodeHover(node:DynamicFlatNode) {
+
+  exitNodeHover(node: DynamicFlatNode) {
     this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.OUT, node, node.item));
   }
 
-  nodeClicked(node: DynamicFlatNode) {
+  nodeClicked(node: DynamicFlatNode, dispatchEvent: boolean = true) {
     const concept = this.database.getNode(node.item);
     if (concept == undefined) return;
     // const conceptName = concept.uri.match(/\/([^\/]+)[\/]?$/)?.pop();
@@ -307,9 +311,19 @@ export class ConceptlistComponent implements OnInit {
       conceptURI = concept.uri.replace(domainURI, "");
     }
     // console.log("strippedURI:", conceptURI);
-    this.router.navigateByUrl('/' + conceptURI);
-    this.database.selectedNodeSubject.next(node.item);
-    this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.SELECT, node, node.item));
+    this.router.onSameUrlNavigation = "ignore";
+    if (this.router.url !== '/' + conceptURI) {
+      this.router.navigateByUrl('/' + conceptURI).then((result) => {
+        console.log("navigated to: ", result)
+      }).catch((reason) => {
+        // console.log("failed to navigate by url", reason);
+      }).finally(() => {
+        // console.log("finally something from navigating");
+      });
+      this.database.selectedNodeSubject.next(node.item);
+    };
+    if (dispatchEvent)
+      this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.TREE_SELECT, node, node.item));
   }
 
   getLevel = (node: DynamicFlatNode) => {
@@ -324,6 +338,23 @@ export class ConceptlistComponent implements OnInit {
     return _nodeData.expandable;
   };
 
+  async selectNodeExternal(id: string) {
+    const dataNode = this.treeControl.dataNodes.find(element => {
+      return element.item == id;
+    });
+    if (dataNode) {
+      // console.log("found datanode:", dataNode, "from id:", id);
+      this.nodeClicked(dataNode, false);
+      if (await this.database.hasChildren(dataNode.item)) {
+        this.treeControl.expand(dataNode);
+      }
+      const divElement = this._document.getElementById(id);
+      if (divElement) {
+        divElement.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }
+
   ngOnInit(): void {
     this.database.loadInitialData().then(() => {
       this.dataSource.data = this.database.initialData();
@@ -332,5 +363,18 @@ export class ConceptlistComponent implements OnInit {
         this.treeControl.expand(this.treeControl.dataNodes[0]);
       }
     });
+
+    this.interactionService.eventSubmitter.subscribe(event => {
+      switch (event.type) {
+        case InteractionEventTypes.EXPLORER_SELECT:
+          this.selectNodeExternal(event.value);
+          break;
+
+        default:
+          break;
+      }
+    });
+    this.router.navigate([], { replaceUrl: true});
   }
+
 }
