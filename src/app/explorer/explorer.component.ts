@@ -43,6 +43,7 @@ export class ExplorerComponent implements OnInit {
             if (childNodes && childNodes.length) {
               this.initChildNodes(node, childNodes);
               this.animateSphere(this.renderView.meshMap.get(node.uri));
+              console.log("done animating children: ", this.renderView.meshMap);
               // const childMeshes = this.renderView.meshMap.get(node.uri);
               // if (childMeshes) {
               //    this.debugNodes(childMeshes);

@@ -19,11 +19,9 @@ export class DynamicFlatNode {
 
 declare global {
   interface Window {
-    dataMap: any;
-    data: any;
-    treeControl: any;
-    initialData: any;
-    controls: any
+    database: any;
+    conceptlist: any;
+    renderengine: any;
   }
 }
 
@@ -46,7 +44,7 @@ export class DynamicDatabase {
 
   constructor(private apollo: Apollo) {
     // debugging only!
-    window['dataMap'] = this.dataMap;
+    window['database'] = this;
   }
 
   initialData(): DynamicFlatNode[] {
@@ -192,7 +190,6 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
 
   constructor(private _treeControl: FlatTreeControl<DynamicFlatNode>,
     private _database: DynamicDatabase) {
-    window['treeControl'] = this._treeControl;
   }
 
   connect(collectionViewer: CollectionViewer): Observable<DynamicFlatNode[]> {

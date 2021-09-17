@@ -6,6 +6,7 @@ import { ConnectedEdge } from './models';
 import { Font } from 'three';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { CustomInteractionEvent, InteractionEventTypes, InteractionService } from '../services/interaction.service';
+import { trigger } from '@angular/animations';
 
 @Injectable({
   providedIn: 'root'
@@ -76,7 +77,7 @@ export class EngineService implements OnDestroy {
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.target = this._centerTargetBox.position;
-    window["controls"] = this._controls;
+    window["renderengine"] = this;
     this._controls.update();
     this._controls.addEventListener('change', (event) => {
       this.renderOnDemand();
@@ -116,6 +117,7 @@ export class EngineService implements OnDestroy {
     this.labels = [];
     this.meshMap = new Map<string, THREE.Mesh[]>();
     this._selectedNodes = [];
+    this._renderer.renderLists.dispose();
   }
 
 
@@ -125,7 +127,7 @@ export class EngineService implements OnDestroy {
     return this.rootMesh;
   }
 
-  transform(objects: THREE.Object3D[], shape:string = "sphere", duration: number = 400) {
+  transform(objects: THREE.Object3D[], shape: string = "sphere", duration: number = 400) {
     TWEEN.removeAll();
     for (let i = 0; i < objects.length; i++) {
       const object = objects[i];
@@ -137,16 +139,16 @@ export class EngineService implements OnDestroy {
           .easing(TWEEN.Easing.Exponential.InOut)
           .start();
       }
-  
+
       new TWEEN.Tween(this)
         .to({}, duration * 2)
         .onUpdate(this._onUpdate)
         .start();
-      }
+    }
   }
 
-  private _storePosition(param:any) {
-    console.log ("store pos:", param);
+  private _storePosition(param: any) {
+    console.log("store pos:", param);
   }
 
   private _onUpdate(engine: EngineService): void {
@@ -198,7 +200,7 @@ export class EngineService implements OnDestroy {
       // console.log ("got some intersects", intersects);
       for (let i = 0; i < intersects.length; i++) {
         const object = intersects[i];
-        if (object.object instanceof THREE.Mesh && object.object.name !== this.rootMesh.name && object.object.name !="debugger") {
+        if (object.object instanceof THREE.Mesh && object.object.name !== this.rootMesh.name && object.object.name != "debugger") {
           this.selectNode(object.object.name);
         }
       }
@@ -215,18 +217,44 @@ export class EngineService implements OnDestroy {
         const node = this.scene.getObjectByName(nodeId);
         if (node) {
           newPos = node.userData["pos"];
-          console.log("reset to:", newPos)
-          new TWEEN.Tween(node.position)
-            .to(newPos, 200)
-            .start();
+          console.log("reset to:", this.meshMap)
+          let nodes: THREE.Object3D[] = [node];
+          if (this.meshMap.has(nodeId)) {
+            const childnodes = this.meshMap.get(nodeId);
+            if (childnodes) {
+              nodes = nodes.concat(childnodes);
+              // console.log("return these nodes:", nodes);
+            };
+          };
+          nodes.forEach(node => {
+            new TWEEN.Tween(node.position)
+              .to(newPos, 200)
+              .onComplete((event) => {
+                console.log("done returning to normal", nodeId);
+                const childnodes = this.meshMap.get(nodeId);
+                if (childnodes) {
+                  childnodes.forEach(node => {
+                    node.clear();
+                    node.geometry.dispose();
+                    this.scene.remove(node);
+                  });
+                  this.meshMap.delete(nodeId);
+                  const len = this.edges.length;
+                  for (let i = len - 1; i >= 0; i--) {
+                    const edge = this.edges[i];
+                    if (this.cleanupEdge(edge)) {
+                      this.edges.splice(i, 1);
+                    }
+                  }
+                }
+              })
+              .start();
+          });
           const newCameraPos = new THREE.Vector3();
           new TWEEN.Tween(this._centerTargetBox.position)
             .to(newCameraPos, 200)
             .onUpdate(() => {
               this._onUpdate(this);
-            })
-            .onComplete(() => {
-              // console.log("done returning to normal", this);
             })
             .start();
         }
@@ -234,12 +262,26 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  public expandSelection(id:string) {
-    const node = this.scene.getObjectByName(id);
+  public cleanupEdge(edge: ConnectedEdge): boolean {
+    if (edge.subject && (this.scene.getObjectByName(edge.subject.name) == undefined)) {
+      // console.log("no longer connected subject, you can remove me", edge.subject.name);
+      return true;
+    }
+    if (edge.object && (this.scene.getObjectByName(edge.object.name) == undefined)) {
+      // console.log("no longer connected object, you can remove me", edge.object.name);
+      return true;
+    }
+    return false;
   }
+
+  // public expandSelection(id: string) {
+  //   const node = this.scene.getObjectByName(id);
+  // }
 
   public selectNode(id: string) {
     let newPos = new THREE.Vector3();
+
+    // node from different branch selected while one still open
     if (this._selectedNodes.length && this._selectedNodes.indexOf(id) == -1) {
       //clear up old selection
       const previousSelectedNodeId = this._selectedNodes.pop();
@@ -248,9 +290,9 @@ export class EngineService implements OnDestroy {
         if (previousSelectedNode) {
           newPos = previousSelectedNode.userData["pos"];
           new TWEEN.Tween(previousSelectedNode.position)
-          .to(newPos, 200)
-          .easing(TWEEN.Easing.Sinusoidal.Out)
-          .start();
+            .to(newPos, 200)
+            .easing(TWEEN.Easing.Sinusoidal.Out)
+            .start();
         }
       }
     } else if (this._selectedNodes.indexOf(id) != -1) {
@@ -264,46 +306,46 @@ export class EngineService implements OnDestroy {
       // console.log("selecting node: ", id);
       this._selectedNodes.push(id);
     } else {
-      // console.log("already selected, doing nothing:", id);
+      console.log("already selected, doing nothing:", id);
       return;
     }
     newPos = new THREE.Vector3();
     if (node) {
-        const ray: THREE.Ray = new THREE.Ray(newPos, node.position);
-        ray.at(0.8, newPos);
-        new TWEEN.Tween(node.position)
-          .to(newPos, 400)
-          .easing(TWEEN.Easing.Sinusoidal.InOut)
-          .onComplete(() => {
-            this._ngZone.run(()=> {
-              // console.log("end position for ", id, " is ", newPos);
-              this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, node.name));
-            });
-          })
-          .start();
+      const ray: THREE.Ray = new THREE.Ray(newPos, node.position);
+      ray.at(0.8, newPos);
+      new TWEEN.Tween(node.position)
+        .to(newPos, 400)
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .onComplete(() => {
+          this._ngZone.run(() => {
+            // console.log("end position for ", id, " is ", newPos);
+            this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, node.name));
+          });
+        })
+        .start();
 
-        new TWEEN.Tween(this._centerTargetBox.position)
-          .to(newPos, 400)
-          .easing(TWEEN.Easing.Sinusoidal.InOut)
-          .onComplete(() => {})
-          .start();
+      new TWEEN.Tween(this._centerTargetBox.position)
+        .to(newPos, 400)
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .onComplete(() => { })
+        .start();
 
-        this.panCamera(newPos);
+      this.panCamera(newPos);
     }
   }
 
-  public panCamera(target:THREE.Vector3) {
+  public panCamera(target: THREE.Vector3) {
     // console.log ("panning camera: ", target);
     const newPos = new THREE.Vector3();
     const ray: THREE.Ray = new THREE.Ray(newPos, target);
     ray.at(0.8, newPos);
     new TWEEN.Tween(this._camera.position)
-    .to(newPos, 400)
-    .onUpdate(() => {
-      this._onUpdate(this);
-    })
-    .easing(TWEEN.Easing.Sinusoidal.InOut)
-    .start();
+      .to(newPos, 400)
+      .onUpdate(() => {
+        this._onUpdate(this);
+      })
+      .easing(TWEEN.Easing.Sinusoidal.InOut)
+      .start();
   }
 
 
@@ -314,7 +356,7 @@ export class EngineService implements OnDestroy {
     // };
   }
 
-  public focusOnNode(id: string, override:boolean = false) {
+  public focusOnNode(id: string, override: boolean = false) {
     if (this._selectedNodes.length > 0 && !override) {
       return;
     }
@@ -489,7 +531,7 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  public makeSphere(objects: THREE.Mesh[], multiply:number = 1): void {
+  public makeSphere(objects: THREE.Mesh[], multiply: number = 1): void {
     const distance = objects.length;
     for (let i = 0, l = distance; i < l; i++) {
       const phi = Math.acos(- 1 + (2 * i) / l);
@@ -502,13 +544,13 @@ export class EngineService implements OnDestroy {
       targetVector.multiplyScalar(multiply);
       targetVector.add(centerVector);
       // console.log("targetvector: " , targetVector);
-      mesh.userData["sphere"] = targetVector; 
+      mesh.userData["sphere"] = targetVector;
     }
   }
 
   private createTargetBox(): THREE.Object3D {
     const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe:true });
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
     const cube = new THREE.Mesh(geometry, material);
     cube.name = "debugger";
     return cube;
