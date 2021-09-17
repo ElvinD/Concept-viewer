@@ -90,6 +90,10 @@ export class ExplorerComponent implements OnInit {
     this.renderView.startFrameRendering();
   }
 
+  toggleLabels() {
+    this.renderView.toggleLabels();
+  }
+
   initChildNodes(parentNode: ConceptNode, childNodes: string[]) {
     // console.log("init child nodes: ", parentNode, "children: ", childNodes);
     if (!this.renderView.meshMap.get(parentNode.uri)) {

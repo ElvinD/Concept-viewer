@@ -1,12 +1,11 @@
 import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import TWEEN from '@tweenjs/tween.js';
-import { ConnectedEdge } from './models';
+import * as THREE from 'three';
 import { Font } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { CustomInteractionEvent, InteractionEventTypes, InteractionService } from '../services/interaction.service';
-import { trigger } from '@angular/animations';
+import { ConnectedEdge } from './models';
 
 @Injectable({
   providedIn: 'root'
@@ -41,7 +40,6 @@ export class EngineService implements OnDestroy {
   public scene!: THREE.Scene;
   public rootMesh!: THREE.Mesh;
   public baseMeshes!: THREE.Mesh[];
-  public expandedMeshes!: THREE.Mesh[];
   public allMeshes!: THREE.Mesh[];
   public meshMap = new Map<string, THREE.Mesh[]>();
   public edges!: ConnectedEdge[];
@@ -138,6 +136,17 @@ export class EngineService implements OnDestroy {
           .to({ x: targetVector.x, y: targetVector.y, z: targetVector.z }, Math.random() * duration + duration)
           .easing(TWEEN.Easing.Exponential.InOut)
           .start();
+
+        const label = object.getObjectByName("label-"+ object.name) as THREE.Mesh;
+        console.log(object.children)
+        if (label) {
+          new TWEEN.Tween(label.material)
+          .to ({opacity: 1}, duration)
+          .easing(TWEEN.Easing.Exponential.InOut)
+          .start();
+        } else {
+          // console.log("not found label from", object.name);
+        }
       }
 
       new TWEEN.Tween(this)
@@ -446,6 +455,10 @@ export class EngineService implements OnDestroy {
     });
   }
 
+  toggleLabels() {
+
+  }
+
   createLabels(objects: THREE.Object3D[]) {
     if (!this._labelFont) {
       this.loadFont(objects);
@@ -454,15 +467,17 @@ export class EngineService implements OnDestroy {
     objects.map(mesh => {
       const nodeData = this.database.getNode(mesh.name);
       if (nodeData) {
-        const textShape = this._labelFont.generateShapes(nodeData.label, 0.04);
+        const textShape = this._labelFont.generateShapes(nodeData.label, 0.03);
         const geometry = new THREE.ShapeGeometry(textShape);
         geometry.computeBoundingBox();
         if (geometry.boundingBox) {
           const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
           geometry.translate(xMid, 0.05, 0);
           const text = new THREE.Mesh(geometry, this._textMaterial);
+          text.name = "label-"+ mesh.name;
           text.position.z = 0;
           mesh.add(text);
+          text.material.opacity = 0;
           this.labels.push(text);
         }
       }
