@@ -22,12 +22,12 @@ export class EngineService implements OnDestroy {
   private _fontLoader!: THREE.FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
   private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0x58595b, dashSize: 1, gapSize: 5 });
-  private _textMaterial = new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    opacity: 0.8,
-    side: THREE.DoubleSide
-  });
+  // private _textMaterial = new THREE.MeshBasicMaterial({
+  //   color: 0x000000,
+  //   transparent: true,
+  //   opacity: 0.8,
+  //   side: THREE.DoubleSide
+  // });
   private _orangeBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xf58220 });
   private _whiteBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
@@ -137,13 +137,15 @@ export class EngineService implements OnDestroy {
           .easing(TWEEN.Easing.Exponential.InOut)
           .start();
 
-        const label = object.getObjectByName("label-"+ object.name) as THREE.Mesh;
-        console.log(object.children)
+        const label = object.getObjectByName("label-" + object.name) as THREE.Mesh;
+        // console.log(object.children)
         if (label) {
+          const mat = label.material as THREE.Material;
+          mat.opacity = 0;
           new TWEEN.Tween(label.material)
-          .to ({opacity: 1}, duration)
-          .easing(TWEEN.Easing.Exponential.InOut)
-          .start();
+            .to({ opacity: 1 }, duration)
+            .easing(TWEEN.Easing.Exponential.InOut)
+            .start();
         } else {
           // console.log("not found label from", object.name);
         }
@@ -447,41 +449,61 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  private loadFont(objects: THREE.Object3D[]) {
-    this._fontLoader = new THREE.FontLoader();
-    this._fontLoader.load('assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
-      this._labelFont = font;
-      this.createLabels(objects);
-    });
+  private async loadFont(objects: THREE.Object3D[]): Promise<THREE.Font> {
+    if (!this._fontLoader) {
+      this._fontLoader = new THREE.FontLoader();
+    }
+    if (!this._labelFont) {
+      return this._fontLoader.loadAsync('assets/fonts/helvetiker_regular.typeface.json');
+    } else {
+      return Promise.resolve( this._labelFont);
+    }
+    // this._fontLoader.load('assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
+    //   this._labelFont = font;
+    //   this.createLabels(objects);
+    // });
   }
 
   toggleLabels() {
 
   }
 
-  createLabels(objects: THREE.Object3D[]) {
-    if (!this._labelFont) {
-      this.loadFont(objects);
-      return;
-    }
-    objects.map(mesh => {
-      const nodeData = this.database.getNode(mesh.name);
-      if (nodeData) {
-        const textShape = this._labelFont.generateShapes(nodeData.label, 0.03);
-        const geometry = new THREE.ShapeGeometry(textShape);
-        geometry.computeBoundingBox();
-        if (geometry.boundingBox) {
-          const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
-          geometry.translate(xMid, 0.05, 0);
-          const text = new THREE.Mesh(geometry, this._textMaterial);
-          text.name = "label-"+ mesh.name;
-          text.position.z = 0;
-          mesh.add(text);
-          text.material.opacity = 0;
-          this.labels.push(text);
+  async createLabels(objects: THREE.Object3D[]): Promise<void> {
+    const font = await this.loadFont(objects).then(font => {
+      this._labelFont = font;
+      // if (!this._labelFont) {
+      //   this.loadFont(objects);
+      //   return;
+      // }
+      objects.map(mesh => {
+        const nodeData = this.database.getNode(mesh.name);
+        if (nodeData) {
+          const textShape = this._labelFont.generateShapes(nodeData.label, 0.03);
+          const geometry = new THREE.ShapeGeometry(textShape);
+          geometry.computeBoundingBox();
+          if (geometry.boundingBox) {
+            const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+            geometry.translate(xMid, 0.05, 0);
+            const text = new THREE.Mesh(geometry, this.createTextMaterial());
+            text.name = "label-" + mesh.name;
+            text.position.z = 0;
+            mesh.add(text);
+            text.material.opacity = 0;
+            this.labels.push(text);
+          }
         }
-      }
-    })
+      });
+      return this.labels;
+    });
+  }
+
+  private createTextMaterial() {
+    return new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
   }
 
   addChildMesh(mesh: THREE.Mesh) {

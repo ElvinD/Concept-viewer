@@ -42,8 +42,11 @@ export class ExplorerComponent implements OnInit {
             const childNodes = await this.database.getChildren(node.uri);
             if (childNodes && childNodes.length) {
               this.initChildNodes(node, childNodes);
-              this.animateSphere(this.renderView.meshMap.get(node.uri));
-              console.log("done animating children: ", this.renderView.meshMap);
+              const meshes = this.renderView.meshMap.get(node.uri);
+              if (meshes) {
+                this.animateSphere(meshes);
+              }
+              // console.log("done animating children: ", this.renderView.meshMap);
               // const childMeshes = this.renderView.meshMap.get(node.uri);
               // if (childMeshes) {
               //    this.debugNodes(childMeshes);
@@ -115,7 +118,8 @@ export class ExplorerComponent implements OnInit {
         this.renderView.makeGrid(childMeshes);
         this.renderView.makeSphere(childMeshes, 0.5);
         this.renderView.makeHelix(childMeshes);
-        this.renderView.createLabels(childMeshes);
+        // this.renderView.createLabels(childMeshes);
+        this.renderView.createLabels(childMeshes).then(() => this.animateSphere(childMeshes));
         // console.log("created: ", this.renderView.meshMap.get(parentNode.uri));
       }
     } else {
@@ -124,7 +128,7 @@ export class ExplorerComponent implements OnInit {
   }
 
   debugNodes(children: THREE.Mesh[]) {
-    console.log("debugnodes ", children);
+    // console.log("debugnodes ", children);
     children.map(child => {
       const targetVector:THREE.Vector3 = child.userData["sphere"];
       if (targetVector) {
@@ -148,9 +152,8 @@ export class ExplorerComponent implements OnInit {
     this.renderView.makeSphere(childMeshes);
     this.renderView.makeGrid(childMeshes);
     this.renderView.makeHelix(childMeshes);
-    this.renderView.createLabels(childMeshes);
+    this.renderView.createLabels(childMeshes).then(() => this.animateSphere(childMeshes));
     // this.renderView.makeTable();
-    this.animateSphere(childMeshes);
   }
 
   canvasClicked(event: MouseEvent) {
