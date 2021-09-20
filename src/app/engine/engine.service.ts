@@ -22,12 +22,6 @@ export class EngineService implements OnDestroy {
   private _fontLoader!: THREE.FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
   private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0x58595b, dashSize: 1, gapSize: 5 });
-  // private _textMaterial = new THREE.MeshBasicMaterial({
-  //   color: 0x000000,
-  //   transparent: true,
-  //   opacity: 0.8,
-  //   side: THREE.DoubleSide
-  // });
   private _orangeBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xf58220 });
   private _whiteBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
@@ -55,7 +49,8 @@ export class EngineService implements OnDestroy {
 
     this._renderer = new THREE.WebGLRenderer({
       canvas: this._canvas,
-      alpha: true,    // transparent background
+      alpha: false,    // transparent background
+      
       antialias: true // smooth edges
     });
     // this.renderer.toneMapping = THREE.ReinhardToneMapping;
@@ -63,6 +58,7 @@ export class EngineService implements OnDestroy {
     this._renderer.setPixelRatio(window.devicePixelRatio);
 
     this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xffffff);
     this.scene.fog = new THREE.FogExp2(0xffffff, 0.4);
 
     this._camera = new THREE.PerspectiveCamera(
@@ -228,7 +224,7 @@ export class EngineService implements OnDestroy {
         const node = this.scene.getObjectByName(nodeId);
         if (node) {
           newPos = node.userData["pos"];
-          console.log("reset to:", this.meshMap)
+          // console.log("reset to:", this.meshMap)
           let nodes: THREE.Object3D[] = [node];
           if (this.meshMap.has(nodeId)) {
             const childnodes = this.meshMap.get(nodeId);
@@ -255,6 +251,8 @@ export class EngineService implements OnDestroy {
                     const edge = this.edges[i];
                     if (this.cleanupEdge(edge)) {
                       this.edges.splice(i, 1);
+                      if (edge.line)
+                        this.scene.remove(edge.line);
                     }
                   }
                 }
@@ -285,9 +283,26 @@ export class EngineService implements OnDestroy {
     return false;
   }
 
-  // public expandSelection(id: string) {
-  //   const node = this.scene.getObjectByName(id);
-  // }
+  public getLevel(id:string):number {
+    let level = 1;
+    let key = this.getKeyFromMap(id);
+    do {
+      level ++;
+      key = this.getKeyFromMap(key);
+      // console.log("found key: ", key);
+    } while (key !== "");
+    // console.log("item found at level", level);
+    return level;
+  }
+
+  private getKeyFromMap(id:string):string {
+    for (const [key, value] of this.meshMap.entries()) {
+       if (value.find (mesh => mesh.name == id) ) {
+        return key;
+      }
+    }
+    return "";
+  }
 
   public selectNode(id: string) {
     let newPos = new THREE.Vector3();
@@ -313,6 +328,7 @@ export class EngineService implements OnDestroy {
       return;
     }
     const node = this.scene.getObjectByName(id);
+    
     if (this._selectedNodes.indexOf(id) == -1) {
       // console.log("selecting node: ", id);
       this._selectedNodes.push(id);
@@ -322,8 +338,10 @@ export class EngineService implements OnDestroy {
     }
     newPos = new THREE.Vector3();
     if (node) {
+      newPos = new THREE.Vector3(node.position.x, node.position.y, node.position.z);
       const ray: THREE.Ray = new THREE.Ray(newPos, node.position);
-      ray.at(0.8, newPos);
+      ray.at(2 / this.getLevel(id), newPos);
+      // newPos.normalize();
       new TWEEN.Tween(node.position)
         .to(newPos, 400)
         .easing(TWEEN.Easing.Sinusoidal.InOut)

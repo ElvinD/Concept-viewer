@@ -170,10 +170,6 @@ export class DynamicDatabase {
   async hasChildren(uri: string): Promise<boolean> {
     return this.dataMap.has(uri);
   }
-
-  isExpandable(node: string): boolean {
-    return this.dataMap.has(node);
-  }
 }
 
 export class DynamicDataSource implements DataSource<DynamicFlatNode> {
@@ -222,7 +218,7 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
       children = await this._database.getChildren(node.item);
     }
     if (children) {
-      children = this._sortArray(children);
+      children = this.sortArray(children);
     }
     const index = this.data.indexOf(node);
     if (!children || index < 0) { // If no children, or cannot find the node, no op
@@ -246,7 +242,7 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
     node.isLoading = false;
   }
 
-  private _sortArray(array: string[]): string[] {
+  sortArray(array: string[]): string[] {
     const sorted = array.sort((a, b) => {
       if (a > b) {
         return 1;
@@ -353,6 +349,7 @@ export class ConceptlistComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    window["conceptlist"] = this;
     this.database.loadInitialData().then(() => {
       this.dataSource.data = this.database.initialData();
       if (this.dataSource.data.length) {
