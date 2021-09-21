@@ -27,7 +27,7 @@ export class EngineService implements OnDestroy {
   private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
   // private boxDebugger = new THREE.BoxHelper(new THREE.Mesh(new THREE.SphereGeometry(0.1), this._nodeMaterial), 0xffff00);
   private _centerTargetBox = this.createTargetBox();
-  private _cameraTargetBox = this.createTargetBox();
+  private _cameraTargetBox = this.createTargetBox(0xff0000, 0.05);
   private _cameraDeltaPos = new THREE.Vector3();
   private _selectedNodes: string[] = [];
 
@@ -66,7 +66,11 @@ export class EngineService implements OnDestroy {
     this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
     // this.scene.add(this.boxDebugger);
-    // this.scene.add(this._centerTargetBox);
+    this.scene.add(this._centerTargetBox);
+    this._centerTargetBox.add(new THREE.AxesHelper(0.5));
+    this._cameraTargetBox.add(new THREE.AxesHelper(0.5));
+    this._cameraTargetBox.position.set(0, 0, -1 );
+    // this._cameraTargetBox.lookAt(this._centerTargetBox.position);
     this._centerTargetBox.add(this._cameraTargetBox);
 
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
@@ -345,35 +349,43 @@ export class EngineService implements OnDestroy {
       new TWEEN.Tween(node.position)
         .to(newPos, 400)
         .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .onUpdate(() => {
+          this._onUpdate(this);
+        })
         .onComplete(() => {
-          this._ngZone.run(() => {
-            // console.log("end position for ", id, " is ", newPos);
-            this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, node.name));
-          });
+         
         })
         .start();
-
-      new TWEEN.Tween(this._centerTargetBox.position)
+        new TWEEN.Tween(this._centerTargetBox.position)
         .to(newPos, 400)
         .easing(TWEEN.Easing.Sinusoidal.InOut)
-        .onComplete(() => { })
+        .onComplete(() => {
+          this._centerTargetBox.lookAt(new THREE.Vector3());
+          this.scene.updateMatrixWorld();
+          let newPosCam = new THREE.Vector3();
+          this._cameraTargetBox.localToWorld(newPosCam);
+          this.panCamera(newPosCam, node.name);
+         })
         .start();
 
-      this.panCamera(newPos);
+      // this.panCamera(this._cameraTargetBox.position);
     }
   }
 
-  public panCamera(target: THREE.Vector3) {
-    // console.log ("panning camera: ", target);
-    const newPos = new THREE.Vector3();
-    const ray: THREE.Ray = new THREE.Ray(newPos, target);
-    ray.at(0.8, newPos);
+  public panCamera(target: THREE.Vector3, nodeId:string) {
+    this._controls.enabled = false;
     new TWEEN.Tween(this._camera.position)
-      .to(newPos, 400)
-      .onUpdate(() => {
-        this._onUpdate(this);
-      })
+      .to(target, 400)
       .easing(TWEEN.Easing.Sinusoidal.InOut)
+      .onUpdate(() => {
+        // this._camera.lookAt(this.rootMesh.position);
+      })
+      .onComplete(() => {
+        this._controls.enabled = true;
+        this._ngZone.run(() => {
+          this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, nodeId));
+        });
+      })
       .start();
   }
 
@@ -603,9 +615,9 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  private createTargetBox(): THREE.Object3D {
-    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+  private createTargetBox(color:number = 0x00ff00, size:number = 0.1): THREE.Object3D {
+    const geometry = new THREE.BoxGeometry(size, size, size);
+    const material = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
     const cube = new THREE.Mesh(geometry, material);
     cube.name = "debugger";
     return cube;
