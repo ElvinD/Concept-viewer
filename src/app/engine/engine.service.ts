@@ -72,7 +72,6 @@ export class EngineService implements OnDestroy {
     this._cameraTargetBox.position.set(0, 0, -1 );
     // this._cameraTargetBox.lookAt(this._centerTargetBox.position);
     this._centerTargetBox.add(this._cameraTargetBox);
-
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.target = this._centerTargetBox.position;
     window["renderengine"] = this;
@@ -361,6 +360,7 @@ export class EngineService implements OnDestroy {
         .easing(TWEEN.Easing.Sinusoidal.InOut)
         .onComplete(() => {
           this._centerTargetBox.lookAt(new THREE.Vector3());
+          this._centerTargetBox.rotateY(0.1);
           this.scene.updateMatrixWorld();
           let newPosCam = new THREE.Vector3();
           this._cameraTargetBox.localToWorld(newPosCam);
