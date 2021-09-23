@@ -1,12 +1,11 @@
 import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import TWEEN from '@tweenjs/tween.js';
-import { ConnectedEdge } from './models';
+import * as THREE from 'three';
 import { Font } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { CustomInteractionEvent, InteractionEventTypes, InteractionService } from '../services/interaction.service';
-import { trigger } from '@angular/animations';
+import { ConnectedEdge } from './models';
 
 @Injectable({
   providedIn: 'root'
@@ -23,25 +22,18 @@ export class EngineService implements OnDestroy {
   private _fontLoader!: THREE.FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
   private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0x58595b, dashSize: 1, gapSize: 5 });
-  private _textMaterial = new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    opacity: 0.8,
-    side: THREE.DoubleSide
-  });
   private _orangeBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xf58220 });
   private _whiteBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   private _nodeMaterial: THREE.Material = new THREE.MeshPhongMaterial({ color: 0xf58220 });
   // private boxDebugger = new THREE.BoxHelper(new THREE.Mesh(new THREE.SphereGeometry(0.1), this._nodeMaterial), 0xffff00);
   private _centerTargetBox = this.createTargetBox();
-  private _cameraTargetBox = this.createTargetBox();
+  private _cameraTargetBox = this.createTargetBox(0xff0000, 0.05);
   private _cameraDeltaPos = new THREE.Vector3();
   private _selectedNodes: string[] = [];
 
   public scene!: THREE.Scene;
   public rootMesh!: THREE.Mesh;
   public baseMeshes!: THREE.Mesh[];
-  public expandedMeshes!: THREE.Mesh[];
   public allMeshes!: THREE.Mesh[];
   public meshMap = new Map<string, THREE.Mesh[]>();
   public edges!: ConnectedEdge[];
@@ -57,7 +49,8 @@ export class EngineService implements OnDestroy {
 
     this._renderer = new THREE.WebGLRenderer({
       canvas: this._canvas,
-      alpha: true,    // transparent background
+      alpha: false,    // transparent background
+      
       antialias: true // smooth edges
     });
     // this.renderer.toneMapping = THREE.ReinhardToneMapping;
@@ -65,6 +58,7 @@ export class EngineService implements OnDestroy {
     this._renderer.setPixelRatio(window.devicePixelRatio);
 
     this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xffffff);
     this.scene.fog = new THREE.FogExp2(0xffffff, 0.4);
 
     this._camera = new THREE.PerspectiveCamera(
@@ -72,9 +66,12 @@ export class EngineService implements OnDestroy {
     this._camera.position.set(0, 0, 2);
     this.scene.add(this._camera);
     // this.scene.add(this.boxDebugger);
-    // this.scene.add(this._centerTargetBox);
+    this.scene.add(this._centerTargetBox);
+    this._centerTargetBox.add(new THREE.AxesHelper(0.5));
+    this._cameraTargetBox.add(new THREE.AxesHelper(0.5));
+    this._cameraTargetBox.position.set(0, 0, -1 );
+    // this._cameraTargetBox.lookAt(this._centerTargetBox.position);
     this._centerTargetBox.add(this._cameraTargetBox);
-
     this._controls = new OrbitControls(this._camera, this._renderer.domElement);
     this._controls.target = this._centerTargetBox.position;
     window["renderengine"] = this;
@@ -138,6 +135,19 @@ export class EngineService implements OnDestroy {
           .to({ x: targetVector.x, y: targetVector.y, z: targetVector.z }, Math.random() * duration + duration)
           .easing(TWEEN.Easing.Exponential.InOut)
           .start();
+
+        const label = object.getObjectByName("label-" + object.name) as THREE.Mesh;
+        // console.log(object.children)
+        if (label) {
+          const mat = label.material as THREE.Material;
+          mat.opacity = 0;
+          new TWEEN.Tween(label.material)
+            .to({ opacity: 1 }, duration)
+            .easing(TWEEN.Easing.Exponential.InOut)
+            .start();
+        } else {
+          // console.log("not found label from", object.name);
+        }
       }
 
       new TWEEN.Tween(this)
@@ -217,7 +227,7 @@ export class EngineService implements OnDestroy {
         const node = this.scene.getObjectByName(nodeId);
         if (node) {
           newPos = node.userData["pos"];
-          console.log("reset to:", this.meshMap)
+          // console.log("reset to:", this.meshMap)
           let nodes: THREE.Object3D[] = [node];
           if (this.meshMap.has(nodeId)) {
             const childnodes = this.meshMap.get(nodeId);
@@ -244,6 +254,8 @@ export class EngineService implements OnDestroy {
                     const edge = this.edges[i];
                     if (this.cleanupEdge(edge)) {
                       this.edges.splice(i, 1);
+                      if (edge.line)
+                        this.scene.remove(edge.line);
                     }
                   }
                 }
@@ -274,9 +286,26 @@ export class EngineService implements OnDestroy {
     return false;
   }
 
-  // public expandSelection(id: string) {
-  //   const node = this.scene.getObjectByName(id);
-  // }
+  public getLevel(id:string):number {
+    let level = 1;
+    let key = this.getKeyFromMap(id);
+    do {
+      level ++;
+      key = this.getKeyFromMap(key);
+      // console.log("found key: ", key);
+    } while (key !== "");
+    // console.log("item found at level", level);
+    return level;
+  }
+
+  private getKeyFromMap(id:string):string {
+    for (const [key, value] of this.meshMap.entries()) {
+       if (value.find (mesh => mesh.name == id) ) {
+        return key;
+      }
+    }
+    return "";
+  }
 
   public selectNode(id: string) {
     let newPos = new THREE.Vector3();
@@ -302,6 +331,7 @@ export class EngineService implements OnDestroy {
       return;
     }
     const node = this.scene.getObjectByName(id);
+    
     if (this._selectedNodes.indexOf(id) == -1) {
       // console.log("selecting node: ", id);
       this._selectedNodes.push(id);
@@ -311,40 +341,51 @@ export class EngineService implements OnDestroy {
     }
     newPos = new THREE.Vector3();
     if (node) {
+      newPos = new THREE.Vector3(node.position.x, node.position.y, node.position.z);
       const ray: THREE.Ray = new THREE.Ray(newPos, node.position);
-      ray.at(0.8, newPos);
+      ray.at(2 / this.getLevel(id), newPos);
+      // newPos.normalize();
       new TWEEN.Tween(node.position)
         .to(newPos, 400)
         .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .onUpdate(() => {
+          this._onUpdate(this);
+        })
         .onComplete(() => {
-          this._ngZone.run(() => {
-            // console.log("end position for ", id, " is ", newPos);
-            this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, node.name));
-          });
+         
         })
         .start();
-
-      new TWEEN.Tween(this._centerTargetBox.position)
+        new TWEEN.Tween(this._centerTargetBox.position)
         .to(newPos, 400)
         .easing(TWEEN.Easing.Sinusoidal.InOut)
-        .onComplete(() => { })
+        .onComplete(() => {
+          this._centerTargetBox.lookAt(new THREE.Vector3());
+          this._centerTargetBox.rotateY(0.1);
+          this.scene.updateMatrixWorld();
+          let newPosCam = new THREE.Vector3();
+          this._cameraTargetBox.localToWorld(newPosCam);
+          this.panCamera(newPosCam, node.name);
+         })
         .start();
 
-      this.panCamera(newPos);
+      // this.panCamera(this._cameraTargetBox.position);
     }
   }
 
-  public panCamera(target: THREE.Vector3) {
-    // console.log ("panning camera: ", target);
-    const newPos = new THREE.Vector3();
-    const ray: THREE.Ray = new THREE.Ray(newPos, target);
-    ray.at(0.8, newPos);
+  public panCamera(target: THREE.Vector3, nodeId:string) {
+    this._controls.enabled = false;
     new TWEEN.Tween(this._camera.position)
-      .to(newPos, 400)
-      .onUpdate(() => {
-        this._onUpdate(this);
-      })
+      .to(target, 400)
       .easing(TWEEN.Easing.Sinusoidal.InOut)
+      .onUpdate(() => {
+        // this._camera.lookAt(this.rootMesh.position);
+      })
+      .onComplete(() => {
+        this._controls.enabled = true;
+        this._ngZone.run(() => {
+          this.interactionService.emitEvent(new CustomInteractionEvent(InteractionEventTypes.EXPLORER_SELECT, {}, nodeId));
+        });
+      })
       .start();
   }
 
@@ -438,35 +479,61 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  private loadFont(objects: THREE.Object3D[]) {
-    this._fontLoader = new THREE.FontLoader();
-    this._fontLoader.load('assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
+  private async loadFont(objects: THREE.Object3D[]): Promise<THREE.Font> {
+    if (!this._fontLoader) {
+      this._fontLoader = new THREE.FontLoader();
+    }
+    if (!this._labelFont) {
+      return this._fontLoader.loadAsync('assets/fonts/helvetiker_regular.typeface.json');
+    } else {
+      return Promise.resolve( this._labelFont);
+    }
+    // this._fontLoader.load('assets/fonts/helvetiker_regular.typeface.json', (font: Font) => {
+    //   this._labelFont = font;
+    //   this.createLabels(objects);
+    // });
+  }
+
+  toggleLabels() {
+
+  }
+
+  async createLabels(objects: THREE.Object3D[]): Promise<void> {
+    const font = await this.loadFont(objects).then(font => {
       this._labelFont = font;
-      this.createLabels(objects);
+      // if (!this._labelFont) {
+      //   this.loadFont(objects);
+      //   return;
+      // }
+      objects.map(mesh => {
+        const nodeData = this.database.getNode(mesh.name);
+        if (nodeData) {
+          const textShape = this._labelFont.generateShapes(nodeData.label, 0.03);
+          const geometry = new THREE.ShapeGeometry(textShape);
+          geometry.computeBoundingBox();
+          if (geometry.boundingBox) {
+            const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+            geometry.translate(xMid, 0.05, 0);
+            const text = new THREE.Mesh(geometry, this.createTextMaterial());
+            text.name = "label-" + mesh.name;
+            text.position.z = 0;
+            mesh.add(text);
+            text.material.opacity = 0;
+            this.labels.push(text);
+          }
+        }
+      });
+      return this.labels;
     });
   }
 
-  createLabels(objects: THREE.Object3D[]) {
-    if (!this._labelFont) {
-      this.loadFont(objects);
-      return;
-    }
-    objects.map(mesh => {
-      const nodeData = this.database.getNode(mesh.name);
-      if (nodeData) {
-        const textShape = this._labelFont.generateShapes(nodeData.label, 0.04);
-        const geometry = new THREE.ShapeGeometry(textShape);
-        geometry.computeBoundingBox();
-        if (geometry.boundingBox) {
-          const xMid = - 0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
-          geometry.translate(xMid, 0.05, 0);
-          const text = new THREE.Mesh(geometry, this._textMaterial);
-          text.position.z = 0;
-          mesh.add(text);
-          this.labels.push(text);
-        }
-      }
-    })
+  private createTextMaterial() {
+    return new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
   }
 
   addChildMesh(mesh: THREE.Mesh) {
@@ -548,9 +615,9 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  private createTargetBox(): THREE.Object3D {
-    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+  private createTargetBox(color:number = 0x00ff00, size:number = 0.1): THREE.Object3D {
+    const geometry = new THREE.BoxGeometry(size, size, size);
+    const material = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
     const cube = new THREE.Mesh(geometry, material);
     cube.name = "debugger";
     return cube;
