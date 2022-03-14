@@ -40,7 +40,7 @@ export const GET_Concept = gql`
                         datatype
                         lang
                   }
-                  source
+                  dc_source
                   subject {
                         uri
                         label

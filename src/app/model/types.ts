@@ -18,6 +18,7 @@ export interface ConceptNode extends RDFNode {
   broader?: ConceptNode[];
   related?: ConceptNode[];
   definition?: Literal[];
+  prefLabel?:Literal[];
   altLabel?: Literal[];
   note?:Literal[];
   scopeNote?:Literal[];

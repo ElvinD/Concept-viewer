@@ -88,6 +88,7 @@ export class DynamicDatabase {
   };
 
   private async loadChildren(uri: string): Promise<string[]> {
+    console.log("laadt kinderen met parent: ", uri);
     return this.apollo.query<Query>({
       query: GET_Concepts,
       errorPolicy: 'all',
