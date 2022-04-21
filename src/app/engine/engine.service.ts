@@ -1,7 +1,7 @@
 import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
 import TWEEN from '@tweenjs/tween.js';
 import * as THREE from 'three';
-import { Font } from 'three';
+import { Font, FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DynamicDatabase } from '../conceptlist/conceptlist.component';
 import { CustomInteractionEvent, InteractionEventTypes, InteractionService } from '../services/interaction.service';
@@ -19,7 +19,7 @@ export class EngineService implements OnDestroy {
   private _controls!: OrbitControls;
   private _frameId: number = -1;
   private _labelFont!: Font;
-  private _fontLoader!: THREE.FontLoader;
+  private _fontLoader!: FontLoader;
   private _hostElement!: ElementRef<HTMLDivElement>;
   private _edgeMaterial: THREE.Material = new THREE.LineDashedMaterial({ color: 0x58595b, dashSize: 1, gapSize: 5 });
   private _orangeBasicMaterial = new THREE.MeshBasicMaterial({ color: 0xf58220 });
@@ -479,9 +479,9 @@ export class EngineService implements OnDestroy {
     }
   }
 
-  private async loadFont(objects: THREE.Object3D[]): Promise<THREE.Font> {
+  private async loadFont(objects: THREE.Object3D[]): Promise<Font> {
     if (!this._fontLoader) {
-      this._fontLoader = new THREE.FontLoader();
+      this._fontLoader = new FontLoader();
     }
     if (!this._labelFont) {
       return this._fontLoader.loadAsync('assets/fonts/helvetiker_regular.typeface.json');
